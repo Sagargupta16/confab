@@ -108,6 +108,30 @@ pnpm run start
 
 Then open <http://localhost:8011>.
 
+### As one command, without the repo
+
+confab is also an installable tool. Build the wheel once, from a checkout:
+
+```
+pnpm run package
+```
+
+That writes `backend/dist/confab-0.3.0-py3-none-any.whl`, which holds the API and
+the built page. Anyone with [uv](https://docs.astral.sh/uv/) can then run it from
+that file, with no clone and no Node:
+
+```
+uvx --from confab-0.3.0-py3-none-any.whl confab
+```
+
+It starts on <http://127.0.0.1:8011>, opens the browser and reads the same
+credentials from the environment as above. `--port` picks another port and
+`--no-open` leaves the browser alone. Run this way there is no checkout to keep
+pictures in, so they go to `.confab/images/` in your home folder.
+
+No release is published yet, so the wheel has to come from a build. Do not run
+`uvx confab` or `pip install confab`: that name on PyPI is a different project.
+
 ## How a round works
 
 1. Your message is added to the transcript.
@@ -138,7 +162,8 @@ Then open <http://localhost:8011>.
   slightly low. A model with no price row, such as Kimi K3.1 and GLM 5.3, shows
   tokens only, never a guessed figure.
 - **Pictures stay on disk.** Generated images are saved under `backend/images/`
-  (git-ignored). Clearing the chat does not delete them; the chat then shows
+  (git-ignored), or under `.confab/images/` in your home folder when confab runs
+  as the installed tool. Clearing the chat does not delete them; the chat then shows
   "Image no longer on disk" only if you remove a file yourself.
 - **`@all` skips image members.** It calls every text member in the chat; mention
   `@stability` by name to draw.
@@ -159,9 +184,11 @@ backend/src/confab/
   roster.py     loads both, and works out the cost of a reply
   bedrock.py    streaming Converse call, image call and credentials
   chat.py       roles, mention parsing, each model's view, the round loop
-  images.py     where pictures are saved (backend/images/)
+  images.py     where pictures are saved
   main.py       FastAPI: GET /api/roster, POST /api/chat (server-sent events),
-                /api/images/<name>.png
+                /api/images/<name>.png, and the built page
+  cli.py        the confab command
+  static/       the built page (git-ignored, written by pnpm run build)
 frontend/src/
   App.tsx       state, the round, layout
   cost.ts       adds up cost per model and formats money

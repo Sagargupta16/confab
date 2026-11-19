@@ -1,12 +1,19 @@
-"""Where generated pictures are kept: backend/images/, served at /api/images."""
+"""Where generated pictures are kept, served at /api/images."""
 
 from __future__ import annotations
 
 import uuid
 from pathlib import Path
 
-IMAGE_DIR = Path(__file__).resolve().parents[2] / "images"
-IMAGE_DIR.mkdir(exist_ok=True)
+# From a checkout: backend/images/. Installed as a tool there is no checkout, and the
+# package folder belongs to the installer, so pictures go under the home folder.
+_backend = Path(__file__).resolve().parents[2]
+IMAGE_DIR = (
+    _backend / "images"
+    if (_backend / "pyproject.toml").is_file()
+    else Path.home() / ".confab" / "images"
+)
+IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def save(png: bytes) -> str:
