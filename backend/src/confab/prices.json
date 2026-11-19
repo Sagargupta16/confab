@@ -1,0 +1,136 @@
+{
+  "checked": "2026-11-19",
+  "source": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json",
+  "currency": "USD",
+  "models": {
+    "us.anthropic.claude-fable-5-2": {
+      "in": 8.8,
+      "out": 44.0
+    },
+    "us.anthropic.claude-opus-5-5": {
+      "in": 4.4,
+      "out": 22.0
+    },
+    "us.anthropic.claude-sonnet-5-5": {
+      "in": 2.2,
+      "out": 11.0
+    },
+    "us.anthropic.claude-haiku-5-5": {
+      "in": 0.11,
+      "out": 0.55
+    },
+    "us.openai.gpt-6.2-astra": {
+      "in": 8.8,
+      "out": 44.0
+    },
+    "us.openai.gpt-6.2-sol": {
+      "in": 2.2,
+      "out": 11.0
+    },
+    "us.openai.gpt-6.1-terra": {
+      "in": 1.1,
+      "out": 5.5
+    },
+    "us.openai.gpt-6-luna": {
+      "in": 0.11,
+      "out": 0.55
+    },
+    "openai.gpt-oss-120b-1:0": {
+      "in": 0.15,
+      "out": 0.6
+    },
+    "openai.gpt-oss-20b-1:0": {
+      "in": 0.07,
+      "out": 0.3
+    },
+    "us.xai.grok-4.7": {
+      "in": 2.2,
+      "out": 6.6
+    },
+    "mistral.mistral-large-3-675b-instruct": {
+      "in": 0.5,
+      "out": 1.5
+    },
+    "mistral.devstral-2-123b": {
+      "in": 0.4,
+      "out": 2.0
+    },
+    "mistral.magistral-small-2509": {
+      "in": 0.5,
+      "out": 1.5
+    },
+    "us.mistral.pixtral-large-2502-v1:0": {
+      "in": 2.0,
+      "out": 6.0
+    },
+    "mistral.ministral-3-14b-instruct": {
+      "in": 0.2,
+      "out": 0.2
+    },
+    "mistral.ministral-3-8b-instruct": {
+      "in": 0.15,
+      "out": 0.15
+    },
+    "mistral.ministral-3-3b-instruct": {
+      "in": 0.1,
+      "out": 0.1
+    },
+    "deepseek.v3.2": {
+      "in": 0.62,
+      "out": 1.85
+    },
+    "us.amazon.nova-pro-v1:0": {
+      "in": 0.8,
+      "out": 3.2
+    },
+    "us.amazon.nova-2-lite-v1:0": {
+      "in": 0.33,
+      "out": 2.75
+    },
+    "us.amazon.nova-micro-v1:0": {
+      "in": 0.035,
+      "out": 0.14
+    },
+    "qwen.qwen3-next-80b-a3b": {
+      "in": 0.14,
+      "out": 1.2
+    },
+    "qwen.qwen3-coder-next": {
+      "in": 0.5,
+      "out": 1.2
+    },
+    "qwen.qwen3-vl-235b-a22b": {
+      "in": 0.53,
+      "out": 2.66
+    },
+    "qwen.qwen3-32b-v1:0": {
+      "in": 0.15,
+      "out": 0.6
+    },
+    "minimax.minimax-m2.5": {
+      "in": 0.3,
+      "out": 1.2
+    },
+    "nvidia.nemotron-super-3-120b": {
+      "in": 0.15,
+      "out": 0.65
+    },
+    "nvidia.nemotron-nano-3-30b": {
+      "in": 0.06,
+      "out": 0.24
+    },
+    "zai.glm-4.7-flash": {
+      "in": 0.07,
+      "out": 0.4
+    },
+    "stability.stable-image-ultra-v1:1": {
+      "image": 0.14
+    },
+    "stability.sd3-5-large-v1:0": {
+      "image": 0.08
+    },
+    "stability.stable-image-core-v1:1": {
+      "image": 0.04
+    }
+  }
+}

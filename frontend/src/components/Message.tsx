@@ -1,17 +1,21 @@
 import { motion } from "motion/react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { money } from "../cost";
 import { linkMentions } from "../mentions";
 import { HUMAN, type ChatMessage, type Member } from "../types";
 import { Avatar } from "./Avatar";
+import { ImageReply } from "./ImageReply";
 
 type Props = {
   message: ChatMessage;
   members: Record<string, Member>;
+  /** Model id to display name, across every seat, so a reply keeps the name of the model that wrote it. */
+  modelNames: Record<string, string>;
   humanName: string;
 };
 
-export function Message({ message, members, humanName }: Props) {
+export function Message({ message, members, modelNames, humanName }: Props) {
   if (message.notice) {
     return (
       <motion.p
@@ -28,6 +32,16 @@ export function Message({ message, members, humanName }: Props) {
   const member = members[message.author];
   const color = mine ? "var(--color-accent)" : (member?.color ?? "var(--color-muted)");
   const handles = new Set(Object.keys(members));
+  const name = mine
+    ? humanName
+    : ((message.model ? modelNames[message.model] : undefined) ?? member?.name ?? message.author);
+  const picture = !mine && (Boolean(message.image) || member?.kind === "image");
+  const footer = [
+    message.usage && `${message.usage.in.toLocaleString()} in · ${message.usage.out.toLocaleString()} out`,
+    (message.usage || message.image) && message.seconds !== undefined && `${message.seconds}s`,
+    message.stop && message.stop !== "end_turn" && `stopped: ${message.stop}`,
+    (message.usage || message.image) && typeof message.cost === "number" && money(message.cost),
+  ].filter(Boolean);
 
   return (
     <motion.article
@@ -38,18 +52,34 @@ export function Message({ message, members, humanName }: Props) {
     >
       <Avatar label={mine ? humanName : message.author} color={color} />
       <div className={`min-w-0 max-w-[min(46rem,88%)] ${mine ? "items-end text-right" : ""}`}>
-        <header className={`mb-1 flex flex-wrap items-baseline gap-x-2 text-xs ${mine ? "justify-end" : ""}`}>
+        <header
+          className={`mb-1 flex min-h-5 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs ${mine ? "justify-end" : ""}`}
+        >
           <span className="font-semibold" style={{ color }}>
-            {mine ? humanName : (member?.name ?? message.author)}
+            {name}
           </span>
+          {message.role && (
+            <motion.span
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 26, delay: 0.08 }}
+              title={message.role}
+              className="max-w-[12rem] truncate rounded-full border px-2 py-px text-[0.7rem] leading-4"
+              style={{ color, borderColor: `${color}8c` }}
+            >
+              {message.role}
+            </motion.span>
+          )}
           {message.askedBy && <span className="text-muted">pulled in by @{message.askedBy}</span>}
         </header>
         <div
-          className={`reply rounded-2xl border px-4 py-2.5 text-left text-[0.95rem] leading-relaxed break-words ${
-            mine ? "rounded-tr-sm border-accent/40 bg-accent/10" : "rounded-tl-sm border-line bg-panel"
-          }`}
+          className={`reply rounded-2xl border text-left text-[0.95rem] leading-relaxed break-words ${
+            picture ? "p-1.5" : "px-4 py-2.5"
+          } ${mine ? "rounded-tr-sm border-accent/40 bg-accent/10" : "rounded-tl-sm border-line bg-panel"}`}
         >
-          {message.text ? (
+          {picture ? (
+            <ImageReply image={message.image} streaming={Boolean(message.streaming)} color={color} />
+          ) : message.text ? (
             <Markdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -80,17 +110,13 @@ export function Message({ message, members, humanName }: Props) {
             </span>
           ) : null}
           {message.error && (
-            <p className="text-sm text-danger" role="alert">
+            <p className={`text-sm text-danger ${picture ? "px-2.5 py-1.5" : ""}`} role="alert">
               {message.error}
             </p>
           )}
         </div>
-        {message.usage && (
-          <footer className="mt-1 text-[0.7rem] tabular-nums text-muted">
-            {message.usage.in.toLocaleString()} in · {message.usage.out.toLocaleString()} out
-            {message.seconds !== undefined && ` · ${message.seconds}s`}
-            {message.stop && message.stop !== "end_turn" && ` · stopped: ${message.stop}`}
-          </footer>
+        {footer.length > 0 && (
+          <footer className="mt-1 text-[0.7rem] tabular-nums text-muted">{footer.join(" · ")}</footer>
         )}
       </div>
     </motion.article>

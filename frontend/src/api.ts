@@ -1,17 +1,18 @@
-import type { ChatEvent, Member } from "./types";
+import type { ChatEvent, Roster, SeatChoice } from "./types";
 
-export async function fetchRoster(): Promise<Member[]> {
+export async function fetchRoster(): Promise<Roster> {
   const response = await fetch("/api/roster");
   if (!response.ok) throw new Error(`roster: HTTP ${response.status}`);
   return response.json();
 }
 
 export type ChatBody = {
-  messages: { author: string; text: string }[];
+  messages: { author: string; text: string; image_prompt?: string }[];
   members: string[];
   default: string | null;
   max_hops: number;
   human_name: string;
+  seats: Record<string, SeatChoice>;
 };
 
 /** Run one round. Calls onEvent for every server-sent event until the stream ends. */
