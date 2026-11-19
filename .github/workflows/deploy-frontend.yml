@@ -1,0 +1,115 @@
+name: Deploy Frontend to GitHub Pages
+
+on:
+  workflow_call:
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # No `version:` here: action-setup reads it from the root package.json
+      # `packageManager` field, and a second pin conflicts with it.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        env:
+          GITHUB_PAGES: "true"
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: pnpm run build
+
+      # SPA routing: GitHub Pages serves 404.html for unknown paths, so the
+      # sign-in callback path /confab/auth/callback/github loads the app.
+      - name: Copy index.html to 404.html for SPA routing
+        run: cp dist/index.html dist/404.html
+
+      # Publish only against the matching live API: same version as
+      # frontend/package.json, mode "hosted", database connected.
+      - name: Wait for the matching backend release
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          import { setTimeout } from 'node:timers/promises'
+
+          const expectedVersion = JSON.parse(readFileSync('package.json', 'utf8')).version
+          const apiBase = process.env.VITE_API_BASE_URL?.replace(/\/+$/, '')
+          if (!apiBase) throw new Error('VITE_API_BASE_URL must be configured before deployment.')
+          const deadline = Date.now() + 10 * 60 * 1000
+          let ready = false
+          let seen = 'no response yet'
+          while (Date.now() < deadline) {
+            try {
+              const responses = await Promise.all(['/api/health', '/api/health/db'].map((path) =>
+                fetch(`${apiBase}${path}`, { signal: AbortSignal.timeout(5000), cache: 'no-store' })))
+              if (responses.every((response) => response.ok)) {
+                const [health, database] = await Promise.all(responses.map((response) => response.json()))
+                seen = `${health.status} ${health.version} ${health.mode}, database ${database.database}`
+                if (
+                  health.status === 'healthy' &&
+                  health.version === expectedVersion &&
+                  health.mode === 'hosted' &&
+                  database.database === 'connected'
+                ) {
+                  ready = true
+                  break
+                }
+              } else {
+                seen = `HTTP ${responses.map((response) => response.status).join(' and ')}`
+              }
+            } catch (error) {
+              // A backend rollout can briefly interrupt health requests.
+              seen = `request failed: ${error.message}`
+            }
+            console.log(`Waiting for a healthy hosted backend ${expectedVersion} before publishing Pages; last saw ${seen}.`)
+            await setTimeout(10000)
+          }
+          if (!ready) throw new Error(`Backend is not ready for ${expectedVersion} (last saw ${seen}). The existing Pages deployment stays active.`)
+          console.log(`Backend ready (${seen}) for frontend ${expectedVersion}.`)
+          NODE
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: frontend/dist
+
+  deploy:
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

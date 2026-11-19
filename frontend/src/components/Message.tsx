@@ -40,8 +40,11 @@ export function Message({ message, members, modelNames, humanName }: Props) {
     message.usage && `${message.usage.in.toLocaleString()} in · ${message.usage.out.toLocaleString()} out`,
     (message.usage || message.image) && message.seconds !== undefined && `${message.seconds}s`,
     message.stop && message.stop !== "end_turn" && `stopped: ${message.stop}`,
+    message.status === "stopped" && !message.stop && typeof message.cost === "number" && "stopped",
     (message.usage || message.image) && typeof message.cost === "number" && money(message.cost),
   ].filter(Boolean);
+  // A model reports its tokens only when a call finishes, so a reply cut short has no figure at all.
+  const unbilled = !mine && message.status === "stopped" && typeof message.cost !== "number";
 
   return (
     <motion.article
@@ -115,8 +118,16 @@ export function Message({ message, members, modelNames, humanName }: Props) {
             </p>
           )}
         </div>
-        {footer.length > 0 && (
-          <footer className="mt-1 text-[0.7rem] tabular-nums text-muted">{footer.join(" · ")}</footer>
+        {(footer.length > 0 || unbilled) && (
+          <footer className="mt-1 text-[0.7rem] tabular-nums text-muted">
+            {footer.join(" · ")}
+            {unbilled && (
+              <span title="The model reports tokens only when a reply finishes; Bedrock still bills what was generated.">
+                {footer.length > 0 && " · "}
+                {message.stop && message.stop !== "end_turn" ? "no cost reported" : "stopped · no cost reported"}
+              </span>
+            )}
+          </footer>
         )}
       </div>
     </motion.article>

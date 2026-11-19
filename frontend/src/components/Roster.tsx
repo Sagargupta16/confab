@@ -209,6 +209,7 @@ export function Roster({
                       <Picker
                         value={choice.model}
                         onChange={(event) => onChoose(seat.handle, { model: event.target.value })}
+                        name={`model-${seat.handle}`}
                         aria-label={`Model for @${seat.handle}`}
                         title={
                           member.model.price ? `${member.name} · ${priceLabel(member.model.price)}` : member.name
@@ -238,6 +239,7 @@ export function Roster({
                       <Picker
                         value={choice.role ?? ""}
                         onChange={(event) => onChoose(seat.handle, { role: event.target.value || null })}
+                        name={`role-${seat.handle}`}
                         aria-label={`Role for @${seat.handle}`}
                         title={preset?.brief ?? (custom ? "Your own role, described below" : "No role")}
                         className={`flex-[2] ${choice.role ? "border-accent/45 text-ink" : "border-line text-muted"}`}
@@ -269,6 +271,7 @@ export function Roster({
                       >
                         <div className="pb-1 pl-[2.625rem] pt-0.5">
                           <input
+                            name={`brief-${seat.handle}`}
                             value={choice.brief}
                             onChange={(event) => onChoose(seat.handle, { brief: event.target.value })}
                             maxLength={200}

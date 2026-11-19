@@ -32,6 +32,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run type-check
       - run: pnpm run build
+      # The shipped page is the GitHub Pages build (base /confab/, written to
+      # frontend/dist). Build it as deploy-frontend.yml does so a Pages-only
+      # failure shows here, not during deployment.
+      - name: Build the GitHub Pages bundle
+        env:
+          GITHUB_PAGES: "true"
+        run: pnpm run build
 
   backend:
     runs-on: ubuntu-latest
@@ -46,5 +53,110 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --locked
+      # A throwaway SQLite file keeps the local-mode import and the migration
+      # checks away from any real database.
+      - name: Point the app at a temporary SQLite file
+        run: echo "CONFAB_DATABASE_URL=sqlite:///$RUNNER_TEMP/confab-ci.db" >> "$GITHUB_ENV"
       # Importing the app loads the roster and builds every route.
       - run: uv run python -c "import sys; sys.path.insert(0, 'src'); from confab.main import app; print(len(app.routes), 'routes')"
+      - name: Alembic upgrade from an empty database
+        run: uv run alembic upgrade head
+      # The migrated schema must match the models.
+      - name: Alembic check on the migrated database
+        run: uv run alembic check
+      # Production settings with no secrets must refuse to load, so a Vercel
+      # deploy with a missing variable fails closed instead of running open.
+      - name: Production import fails without its secrets
+        env:
+          CONFAB_ENVIRONMENT: production
+          PYTHONPATH: src
+        run: |
+          if uv run python -c "import confab.main"; then
+            echo "::error::confab.main imported in production mode with no secrets set. Settings must fail closed."
+            exit 1
+          fi
+      # Vercel loads the app as src.confab.main, so `confab` is not a top-level
+      # module there: an absolute import passes locally and breaks in production.
+      - name: No absolute imports inside the package
+        run: |
+          if grep -rnE "^\s*(from|import) confab" src/confab --include="*.py" --exclude-dir=migrations; then
+            echo "::error::Use relative imports inside backend/src/confab (the lines above import confab absolutely)."
+            exit 1
+          fi
+      # deploy-frontend.yml waits for the live API to report the frontend's
+      # version, so one missed bump has to fail here, before migrate runs.
+      - name: Four version places agree
+        working-directory: .
+        run: |
+          python3 - <<'PY'
+          import json, re, sys, tomllib
+          places = {
+              "package.json": json.load(open("package.json"))["version"],
+              "frontend/package.json": json.load(open("frontend/package.json"))["version"],
+              "backend/pyproject.toml": tomllib.load(open("backend/pyproject.toml", "rb"))["project"]["version"],
+          }
+          init = open("backend/src/confab/__init__.py").read()
+          found = re.search(r'^__version__\s*=\s*"([^"]+)"', init, re.M)
+          places["backend/src/confab/__init__.py __version__"] = found.group(1) if found else "missing"
+          expected = places["package.json"]
+          bad = [name for name, value in places.items() if value != expected]
+          for name in bad:
+              print(f"::error::{name} is {places[name]} but package.json is {expected}.")
+          sys.exit(1 if bad else 0)
+          PY
+
+  postgres-migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: confab_test
+          POSTGRES_PASSWORD: confab_test
+          POSTGRES_DB: confab_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U confab_test -d confab_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The throwaway service container above; not a real credential.
+      CONFAB_DATABASE_URL: postgresql://confab_test:confab_test@127.0.0.1:5432/confab_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --locked
+      # The CLI path the migrate job uses: the URL is normalized from
+      # postgresql:// to psycopg 3 by settings, then env.py builds the engine.
+      - name: Alembic upgrade on PostgreSQL
+        run: uv run alembic upgrade head
+      - name: Alembic check on PostgreSQL
+        run: uv run alembic check
+
+  migrate:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [frontend, backend, postgres-migrations]
+    uses: ./.github/workflows/migrate.yml
+    permissions:
+      contents: read
+    secrets:
+      CONFAB_DATABASE_URL: ${{ secrets.CONFAB_DATABASE_URL }}
+
+  deploy-frontend:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: migrate
+    uses: ./.github/workflows/deploy-frontend.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

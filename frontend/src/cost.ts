@@ -42,12 +42,14 @@ export type CostRow = {
   color: string;
   replies: number;
   images: number;
+  /** Replies stopped before the model reported tokens: billed by Bedrock, but no figure reached us. */
+  stopped: number;
   tokens: Usage;
   /** Null when none of this row's replies has a known cost. */
   cost: number | null;
 };
 
-export type CostSummary = { rows: CostRow[]; total: number; tokens: Usage; unpriced: boolean };
+export type CostSummary = { rows: CostRow[]; total: number; tokens: Usage; unpriced: boolean; stopped: number };
 
 /** Add up what each model has cost in this chat. The figures come from the server; no price math here. */
 export function costRows(
@@ -58,8 +60,11 @@ export function costRows(
   const rows = new Map<string, CostRow>();
   const tokens: Usage = { in: 0, out: 0 };
   let unpriced = false;
+  let stopped = 0;
   for (const message of messages) {
-    if (!message.usage && !message.image) continue;
+    // Counted apart, never as a free reply: the figures below leave it out and the table says so.
+    const cut = message.status === "stopped" && !message.usage && !message.image && typeof message.cost !== "number";
+    if (!message.usage && !message.image && !cut) continue;
     const key = message.model ?? `@${message.author}`;
     let row = rows.get(key);
     if (!row) {
@@ -70,10 +75,16 @@ export function costRows(
         color: members[message.author]?.color ?? "var(--color-muted)",
         replies: 0,
         images: 0,
+        stopped: 0,
         tokens: { in: 0, out: 0 },
         cost: null,
       };
       rows.set(key, row);
+    }
+    if (cut) {
+      row.stopped += 1;
+      stopped += 1;
+      continue;
     }
     if (message.image) row.images += 1;
     else row.replies += 1;
@@ -90,7 +101,7 @@ export function costRows(
     (a, b) => (b.cost ?? -1) - (a.cost ?? -1) || b.tokens.in + b.tokens.out - (a.tokens.in + a.tokens.out),
   );
   const total = sorted.reduce((sum, row) => sum + (row.cost ?? 0), 0);
-  return { rows: sorted, total, tokens, unpriced };
+  return { rows: sorted, total, tokens, unpriced, stopped };
 }
 
 /** The one-line total: money once anything is priced, otherwise the token count. */

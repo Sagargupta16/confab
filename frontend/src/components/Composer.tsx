@@ -11,6 +11,8 @@ type Props = {
   /** Members currently in the chat, in roster order. */
   members: Member[];
   busy: boolean;
+  /** Stop was pressed and the server has not ended the round yet. */
+  stopping?: boolean;
   /** Bumped by the parent whenever it wants the caret back in the box. */
   focusToken: number;
   onSend: (text: string) => void;
@@ -19,7 +21,7 @@ type Props = {
 
 type Option = { handle: string; label: string; color: string };
 
-export function Composer({ draft, onDraft, members, busy, focusToken, onSend, onStop }: Props) {
+export function Composer({ draft, onDraft, members, busy, stopping = false, focusToken, onSend, onStop }: Props) {
   const box = useRef<HTMLTextAreaElement>(null);
   const [caret, setCaret] = useState(0);
   const [picked, setPicked] = useState(0);
@@ -117,6 +119,8 @@ export function Composer({ draft, onDraft, members, busy, focusToken, onSend, on
         <div className="flex items-end gap-2 rounded-2xl border border-line bg-panel p-2 focus-within:border-accent/70">
           <textarea
             ref={box}
+            name="message"
+            aria-label="Message"
             rows={1}
             value={draft}
             placeholder="Message the room. @ to pick who answers"
@@ -154,15 +158,18 @@ export function Composer({ draft, onDraft, members, busy, focusToken, onSend, on
                 submit();
               }
             }}
-            className="max-h-[33vh] min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-[0.95rem] leading-relaxed outline-none placeholder:text-muted"
+            className="max-h-[33vh] min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-base leading-relaxed outline-none placeholder:text-muted md:text-[0.95rem]"
           />
           {busy ? (
             <motion.button
               type="button"
               onClick={onStop}
+              disabled={stopping}
               whileTap={{ scale: 0.92 }}
-              title="Stop the round"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-danger/50 text-danger"
+              animate={stopping ? { opacity: [1, 0.4, 1] } : { opacity: 1 }}
+              transition={stopping ? { duration: 1, repeat: Infinity } : { duration: 0.15 }}
+              title={stopping ? "Stopping after the current piece" : "Stop the round"}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-danger/50 text-danger disabled:cursor-default"
             >
               <Square size={16} fill="currentColor" />
             </motion.button>

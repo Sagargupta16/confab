@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import sys
 import threading
 import webbrowser
 
 import uvicorn
-
-from .images import IMAGE_DIR
+from sqlalchemy.engine import make_url
 
 
 def main() -> None:
@@ -25,8 +25,29 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # Imported after parsing, so --help works whatever the environment says, and a
+    # refusal reads as one line instead of a traceback.
+    try:
+        from .images import IMAGE_DIR
+        from .settings import settings
+    except RuntimeError as error:
+        sys.exit(f"confab: {error}")
+    if not settings.is_local:
+        sys.exit(
+            "confab: this command runs local mode only; unset CONFAB_ENVIRONMENT to use it."
+        )
+
+    database = make_url(settings.database_url)
+    # Only a file path is printed: another URL can carry a password.
+    where = (
+        database.database
+        if database.get_backend_name() == "sqlite"
+        else "the database in CONFAB_DATABASE_URL"
+    )
     url = f"http://127.0.0.1:{args.port}"
-    print(f"confab on {url}  (pictures are saved in {IMAGE_DIR})")
+    print(f"confab on {url}")
+    print(f"  chats are saved in {where}")
+    print(f"  pictures are saved in {IMAGE_DIR or 'the R2 bucket'}")
     if not args.no_open:
         # Give the server a moment to bind before the browser asks for the page.
         threading.Timer(1.0, webbrowser.open, args=(url,)).start()
