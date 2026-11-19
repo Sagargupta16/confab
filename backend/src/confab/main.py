@@ -106,7 +106,8 @@ def _server_sent(events: Iterator[dict]) -> Iterator[str]:
 
 app.mount("/api/images", StaticFiles(directory=IMAGE_DIR), name="images")
 
-# After `pnpm run build` the API also serves the built page, so one process is enough.
-_dist = Path(__file__).resolve().parents[3] / "frontend" / "dist"
-if _dist.is_dir():
-    app.mount("/", StaticFiles(directory=_dist, html=True), name="page")
+# After `pnpm run build` the built page sits beside this file (and inside the wheel),
+# so the API serves it too and one process is enough.
+_page = Path(__file__).parent / "static"
+if _page.is_dir():
+    app.mount("/", StaticFiles(directory=_page, html=True), name="page")

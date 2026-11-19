@@ -20,6 +20,9 @@ dist/
 # Generated images
 backend/images/
 
+# The built page, written into the package by `pnpm run build`
+backend/src/confab/static/
+
 # Logs and scratch
 *.log
 .scratch/

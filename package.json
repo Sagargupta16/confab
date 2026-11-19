@@ -1,6 +1,6 @@
 {
   "name": "confab",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "packageManager": "pnpm@12.18.0",
   "description": "A group chat with Amazon Bedrock models: mention one and it answers, and they can pull each other in",
@@ -13,7 +13,8 @@
     "dev:frontend": "cd frontend && pnpm run dev",
     "type-check": "cd frontend && pnpm run type-check",
     "build": "cd frontend && pnpm run build",
-    "start": "cd backend && uv run uvicorn confab.main:app --app-dir src --port 8011"
+    "start": "cd backend && uv run confab --no-open",
+    "package": "pnpm run build && cd backend && uv build --wheel"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"

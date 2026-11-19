@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 - 2026-11-19
+
+- confab is now an installable tool with a `confab` command. It starts the API on
+  `127.0.0.1:8011`, serves the built page from the same port and opens the
+  browser. `--port` and `--no-open` are its two options.
+- `pnpm run package` builds a wheel (`backend/dist/`) that holds the API and the
+  built page, so it runs with `uvx --from <wheel> confab` on a machine with no
+  clone and no Node. No release is published yet.
+- The built page now goes to `backend/src/confab/static/` (it was
+  `frontend/dist/`), and `pnpm run start` runs the `confab` command.
+- Run as the installed tool, pictures are saved under `.confab/images/` in the
+  home folder. From a checkout they stay in `backend/images/`.
+
 ## 0.2.0 - 2026-11-19
 
 - Roles: each text member can take a preset (Critic, Builder, Fact-checker,

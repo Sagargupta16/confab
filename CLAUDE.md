@@ -30,7 +30,7 @@ pnpm run setup
 pnpm run dev
 ```
 
-`pnpm run dev` starts the API on 8011 and the page on <http://localhost:5183> (Vite proxies `/api`). `pnpm run build` then `pnpm run start` serves the built page from the API on 8011 alone.
+`pnpm run dev` starts the API on 8011 and the page on <http://localhost:5183> (Vite proxies `/api`). `pnpm run build` then `pnpm run start` serves the built page from the API on 8011 alone. `pnpm run package` builds the wheel in `backend/dist/`; `uvx --from <wheel> confab` runs it with no checkout.
 
 ## Test
 
@@ -42,7 +42,8 @@ No test suite yet. CI (`.github/workflows/ci.yml`) type-checks and builds the fr
 
 ## Entry points
 
-- `backend/src/confab/main.py` -- FastAPI app: `GET /api/roster`, `POST /api/chat` (server-sent events), and the built page when `frontend/dist` exists.
+- `backend/src/confab/main.py` -- FastAPI app: `GET /api/roster`, `POST /api/chat` (server-sent events), and the built page when `backend/src/confab/static/` exists (Vite's `outDir`, git-ignored, packed into the wheel).
+- `backend/src/confab/cli.py` -- the `confab` command (`[project.scripts]`): uvicorn on `127.0.0.1`, `--port`, `--no-open`.
 - `frontend/src/main.tsx` -- mounts `App`.
 
 ## Key files
@@ -52,7 +53,7 @@ No test suite yet. CI (`.github/workflows/ci.yml`) type-checks and builds the fr
 - `backend/src/confab/prices.json` -- USD per million tokens (`in`, `out`) or per image (`image`) by model id, plus `checked`, `source` and `currency`. `roster.py` refuses a row for a model that is not in `models.json`.
 - `backend/src/confab/roster.py` -- loads both files and works out the cost of a reply.
 - `backend/src/confab/bedrock.py` -- the streaming Converse call, the image InvokeModel call and the credential fallback.
-- `backend/src/confab/images.py` -- saves pictures under `backend/images/` (git-ignored) under random names.
+- `backend/src/confab/images.py` -- saves pictures under random names: `backend/images/` (git-ignored) from a checkout, `~/.confab/images/` when installed (it tells the two apart by `backend/pyproject.toml`).
 - `frontend/src/cost.ts` -- adds up cost per model and formats money; `components/CostTable.tsx` and `components/Sidebar.tsx` are the Cost tab.
 - `frontend/src/App.tsx` -- chat state, the round, stored settings.
 - `frontend/src/mentions.ts` -- the mention rule; keep it identical to `MENTION` in `chat.py`.
@@ -71,6 +72,8 @@ No test suite yet. CI (`.github/workflows/ci.yml`) type-checks and builds the fr
 
 ## Gotchas
 
+- The PyPI name `confab` belongs to another project (version 1.4 on 2026-11-19). Never write `uvx confab` or `pip install confab` in docs; nothing is published yet, and the name to publish under is Sagar's call.
+- The backend is a real package since 0.3.0 (`uv_build`, `[project.scripts]`). The wheel picks up `static/` only if `pnpm run build` ran first, so build wheels with `pnpm run package`, never `uv build` alone.
 - Model ids and the `temperature` flag come from `community/bedrock-multi-model-mcp/src/data/text-models.json`, where each id was probed live. Reasoning models (Claude 5, GPT-6, Grok, Kimi) reject `temperature`; a wrong flag fails the call.
 - Reasoning models spend output tokens on thinking, so a small `maxTokens` gives an empty reply that looks like a failure. Keep their cap at 16384.
 - Models do not know who they are unless told: without the system prompt in `chat.py`, DeepSeek answered as the user and MiniMax as Claude (probe, 2026-11-19).

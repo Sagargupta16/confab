@@ -6,6 +6,9 @@ import { defineConfig } from "vite";
 // this proxy, so the browser only ever sees one origin.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // The built page goes inside the Python package, so the API serves it from a
+  // checkout and from an installed wheel alike.
+  build: { outDir: "../backend/src/confab/static", emptyOutDir: true },
   server: {
     port: 5183,
     strictPort: true,
