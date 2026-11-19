@@ -1,0 +1,22 @@
+{
+  "name": "confab",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@12.18.0",
+  "description": "A group chat with Amazon Bedrock models: mention one and it answers, and they can pull each other in",
+  "scripts": {
+    "setup": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run setup:backend\" \"pnpm run setup:frontend\"",
+    "setup:backend": "cd backend && uv sync",
+    "setup:frontend": "cd frontend && pnpm install",
+    "dev": "concurrently -n \"backend,frontend\" -c \"bgBlue.bold,bgMagenta.bold\" \"pnpm run dev:backend\" \"pnpm run dev:frontend\"",
+    "dev:backend": "cd backend && uv run uvicorn confab.main:app --app-dir src --reload --reload-dir src --port 8011",
+    "dev:frontend": "cd frontend && pnpm run dev",
+    "type-check": "cd frontend && pnpm run type-check",
+    "build": "cd frontend && pnpm run build",
+    "start": "cd backend && uv run uvicorn confab.main:app --app-dir src --port 8011"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  },
+  "license": "MIT"
+}
