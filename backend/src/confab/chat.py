@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from collections.abc import Iterator
@@ -10,6 +11,8 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from .bedrock import stream_reply
 from .roster import ROSTER, Member
+
+log = logging.getLogger("uvicorn.error")
 
 HUMAN = "you"
 MENTION = re.compile(r"(?<![\w@.])@([a-z][a-z0-9-]*)", re.IGNORECASE)
@@ -122,7 +125,7 @@ def run(
                         "seconds": round(time.monotonic() - started, 1),
                     }
         except (ClientError, BotoCoreError) as error:
-            yield {"type": "error", "handle": handle, "message": _reason(error)}
+            yield {"type": "error", "handle": handle, "message": _reason(handle, error)}
             continue
         if not text.strip():
             continue
@@ -135,8 +138,32 @@ def run(
     yield {"type": "done", "hops": hops, "capped": [handle for handle, _ in queue]}
 
 
-def _reason(error: ClientError | BotoCoreError) -> str:
+# What the page shows for a failed call. The exception text itself stays in the API
+# log: it can name endpoints, account details and request ids.
+REASONS = {
+    "ThrottlingException": "Throttled by Bedrock. Wait a little, then mention it again.",
+    "ServiceQuotaExceededException": "Over this account's quota for the model.",
+    "AccessDeniedException": "This account has no access to the model.",
+    "ValidationException": "Bedrock rejected the request for this model.",
+    "ResourceNotFoundException": "Bedrock does not know this model id.",
+    "ModelTimeoutException": "The model took too long to answer.",
+    "ModelNotReadyException": "The model is not ready yet. Try again shortly.",
+    "ModelStreamErrorException": "The reply broke off mid-stream.",
+    "ModelErrorException": "The model failed while answering.",
+    "ServiceUnavailableException": "Bedrock is unavailable right now.",
+    "InternalServerException": "Bedrock had an internal error.",
+    "ExpiredTokenException": "The Bedrock credentials have expired.",
+    "UnrecognizedClientException": "The Bedrock credentials were rejected.",
+    "NoCredentialsError": "No Bedrock credentials were found.",
+    "EndpointConnectionError": "Could not reach Bedrock. Check the network and region.",
+    "ReadTimeoutError": "Bedrock did not answer in time.",
+}
+
+
+def _reason(handle: str, error: ClientError | BotoCoreError) -> str:
     if isinstance(error, ClientError):
-        detail = error.response.get("Error", {})
-        return f"{detail.get('Code', 'Error')}: {detail.get('Message', str(error))}"
-    return f"{type(error).__name__}: {error}"
+        code = error.response.get("Error", {}).get("Code", "")
+    else:
+        code = type(error).__name__
+    log.warning("@%s failed: %s", handle, error)
+    return REASONS.get(code, "The call to Bedrock failed. The API log has the details.")

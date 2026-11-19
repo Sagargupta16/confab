@@ -77,5 +77,6 @@ No test suite yet. CI (`.github/workflows/ci.yml`) type-checks and builds the fr
 ## Repo-specific rules
 
 - Never log or return the bearer token, and never add an endpoint that echoes environment variables.
+- Never put exception text in an API response. A failed call maps to a fixed line in `REASONS` (`chat.py`) and the detail goes to the API log; add a line there for a new error code.
 - Every model call goes through the Converse API on the `us.` profile ids. Never route Claude through Bedrock Mantle.
 - Keep motion visible; no `prefers-reduced-motion` handling.
