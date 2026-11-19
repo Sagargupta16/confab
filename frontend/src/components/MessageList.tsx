@@ -5,7 +5,10 @@ import { Message } from "./Message";
 type Props = {
   messages: ChatMessage[];
   members: Record<string, Member>;
+  modelNames: Record<string, string>;
   humanName: string;
+  /** True when an image model is in the chat, which adds a starter that hands it a prompt. */
+  imageInRoom: boolean;
   onSuggest: (text: string) => void;
 };
 
@@ -16,9 +19,14 @@ const STARTERS = [
   "@mistral explain event sourcing in three sentences, then ask @deepseek to poke a hole in it",
 ];
 
-export function MessageList({ messages, members, humanName, onSuggest }: Props) {
+// It names no image handle on purpose: Claude has to mention the image model, so its reply becomes the prompt.
+const IMAGE_STARTER =
+  "@claude write a one-line prompt for a poster about confab and hand it to the image model in this room";
+
+export function MessageList({ messages, members, modelNames, humanName, imageInRoom, onSuggest }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
+  const starters = imageInRoom ? [...STARTERS, IMAGE_STARTER] : STARTERS;
 
   // Follow the newest text unless the reader has scrolled up to read something.
   useEffect(() => {
@@ -36,7 +44,7 @@ export function MessageList({ messages, members, humanName, onSuggest }: Props) 
       className="min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6"
     >
       {messages.length === 0 ? (
-        <div className="mx-auto flex h-full max-w-xl flex-col justify-center gap-5">
+        <div className="mx-auto flex min-h-full max-w-xl flex-col justify-center gap-5">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">Everyone is here.</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -46,7 +54,7 @@ export function MessageList({ messages, members, humanName, onSuggest }: Props) 
             </p>
           </div>
           <ul className="space-y-2">
-            {STARTERS.map((starter) => (
+            {starters.map((starter) => (
               <li key={starter}>
                 <button
                   type="button"
@@ -62,7 +70,13 @@ export function MessageList({ messages, members, humanName, onSuggest }: Props) 
       ) : (
         <div className="mx-auto flex max-w-4xl flex-col gap-5">
           {messages.map((message) => (
-            <Message key={message.id} message={message} members={members} humanName={humanName} />
+            <Message
+              key={message.id}
+              message={message}
+              members={members}
+              modelNames={modelNames}
+              humanName={humanName}
+            />
           ))}
         </div>
       )}

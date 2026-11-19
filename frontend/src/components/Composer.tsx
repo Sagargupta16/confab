@@ -26,10 +26,17 @@ export function Composer({ draft, onDraft, members, busy, focusToken, onSend, on
   const [dismissed, setDismissed] = useState(false);
 
   const typing = dismissed ? null : mentionAtCaret(draft, caret);
+  const everyone = members.some((member) => member.kind === "image")
+    ? "Every text model in the chat"
+    : "Everyone in the chat";
   const options: Option[] = typing
     ? [
-        { handle: "all", label: "Everyone in the chat", color: "var(--color-accent)" },
-        ...members.map((member) => ({ handle: member.handle, label: member.name, color: member.color })),
+        { handle: "all", label: everyone, color: "var(--color-accent)" },
+        ...members.map((member) => ({
+          handle: member.handle,
+          label: member.role ? `${member.name} · ${member.role}` : member.name,
+          color: member.color,
+        })),
       ].filter((option) => option.handle.startsWith(typing.prefix))
     : [];
   const open = options.length > 0;
@@ -93,7 +100,7 @@ export function Composer({ draft, onDraft, members, busy, focusToken, onSend, on
                       choose(option);
                     }}
                     onMouseEnter={() => setPicked(index)}
-                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-sm ${
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm md:py-1.5 ${
                       index === active ? "bg-raised" : ""
                     }`}
                   >

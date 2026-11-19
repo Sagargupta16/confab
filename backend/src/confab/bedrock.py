@@ -1,5 +1,8 @@
 """Streaming calls to the Bedrock Converse API, one request shape for every model."""
 
+import base64
+import json
+import logging
 import os
 import sys
 from collections.abc import Iterator
@@ -8,7 +11,9 @@ from functools import cache
 import boto3
 from botocore.config import Config
 
-from .roster import Member
+from .roster import Model
+
+log = logging.getLogger("uvicorn.error")
 
 TOKEN_VARIABLE = "AWS_BEARER_TOKEN_BEDROCK"
 REGION = (
@@ -43,25 +48,37 @@ def _ensure_token() -> None:
         os.environ.pop(TOKEN_VARIABLE, None)
 
 
+class ImageError(Exception):
+    """The image call went through but gave no picture."""
+
+
+class ImageRefused(ImageError):
+    pass
+
+
+class ImageMissing(ImageError):
+    pass
+
+
 @cache
-def _client():
+def _client(region: str):
     _ensure_token()
     return boto3.client(
         "bedrock-runtime",
-        region_name=REGION,
+        region_name=region,
         config=Config(
             read_timeout=300, retries={"max_attempts": 2, "mode": "standard"}
         ),
     )
 
 
-def stream_reply(member: Member, system: str, messages: list[dict]) -> Iterator[dict]:
+def stream_reply(model: Model, system: str, messages: list[dict]) -> Iterator[dict]:
     """Yield {"delta": text} pieces, then one {"usage": ..., "stop": ...}."""
-    inference: dict = {"maxTokens": member.max_tokens}
-    if member.temperature:
+    inference: dict = {"maxTokens": model.max_tokens}
+    if model.temperature:
         inference["temperature"] = 0.7
-    response = _client().converse_stream(
-        modelId=member.model_id,
+    response = _client(model.region or REGION).converse_stream(
+        modelId=model.id,
         system=[{"text": system}],
         messages=messages,
         inferenceConfig=inference,
@@ -85,3 +102,26 @@ def stream_reply(member: Member, system: str, messages: list[dict]) -> Iterator[
         },
         "stop": stop,
     }
+
+
+def generate_image(model: Model, prompt: str) -> bytes:
+    """One PNG from a Stability model through InvokeModel, in the model's own region."""
+    body: dict = {"prompt": prompt, "aspect_ratio": "1:1", "output_format": "png"}
+    # SD 3.5 needs the mode field; Ultra and Core reject it.
+    if model.id.startswith("stability.sd3"):
+        body["mode"] = "text-to-image"
+    response = _client(model.region or REGION).invoke_model(
+        modelId=model.id,
+        body=json.dumps(body),
+        contentType="application/json",
+        accept="application/json",
+    )
+    result = json.loads(response["body"].read())
+    reasons = [reason for reason in result.get("finish_reasons") or [] if reason]
+    if reasons:
+        log.warning("image model %s finished with %s", model.id, reasons)
+        raise ImageRefused
+    images = result.get("images") or []
+    if not images:
+        raise ImageMissing
+    return base64.b64decode(images[0])

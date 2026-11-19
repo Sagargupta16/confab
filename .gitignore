@@ -17,6 +17,9 @@ dist/
 .vite/
 *.tsbuildinfo
 
+# Generated images
+backend/images/
+
 # Logs and scratch
 *.log
 .scratch/
