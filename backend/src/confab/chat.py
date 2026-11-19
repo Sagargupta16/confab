@@ -5,13 +5,13 @@ from __future__ import annotations
 import logging
 import re
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
 from botocore.exceptions import BotoCoreError, ClientError
 
 from .bedrock import ImageError, generate_image, stream_reply
-from .images import save
+from .images import store
 from .roster import ROSTER, Model, cost
 
 log = logging.getLogger("uvicorn.error")
@@ -185,12 +185,16 @@ def run(
     max_hops: int,
     human_name: str,
     picks: dict[str, Pick],
+    *,
+    should_stop: Callable[[], bool],
+    deadline: float | None,
 ) -> Iterator[dict]:
     """Answer the newest human message, then follow the models' own mentions.
 
-    Yields events for the browser: start, then delta and end (or image) or error per
-    reply, then done. A hop is a reply one model triggered by mentioning another;
-    max_hops caps them.
+    Yields events: start, then delta and end (or image) or error per reply, stopped
+    when should_stop cut a reply short, then done with the reason the round ended. A
+    hop is a reply one model triggered by mentioning another; max_hops caps them. No
+    new reply starts once time.monotonic() passes deadline.
     """
     transcript = list(transcript)
     everyone = [h for h in members if ROSTER[h].kind == "text"]
@@ -202,13 +206,21 @@ def run(
         queue = [(default if default in members else members[0], None, first)]
 
     hops = 0
+    reason = "complete"
     while queue:
-        handle, asked_by, trigger = queue.pop(0)
+        if should_stop():
+            reason = "stopped"
+            break
+        if deadline is not None and time.monotonic() >= deadline:
+            reason = "time"
+            break
+        handle, asked_by, trigger = queue[0]
         if asked_by is not None:
             if hops >= max_hops:
-                queue.insert(0, (handle, asked_by, trigger))
+                reason = "hops"
                 break
             hops += 1
+        queue.pop(0)
         pick = picks[handle]
         yield {
             "type": "start",
@@ -229,25 +241,31 @@ def run(
                 }
                 continue
             try:
-                name = save(generate_image(pick.model, prompt))
-            # ValueError: a reply body that is not JSON or base64. OSError: the file write.
-            except (
-                ClientError,
-                BotoCoreError,
-                ImageError,
-                ValueError,
-                OSError,
-            ) as error:
+                png = generate_image(pick.model, prompt)
+            # ValueError: a reply body that is not JSON or base64.
+            except (ClientError, BotoCoreError, ImageError, ValueError) as error:
                 yield {
                     "type": "error",
                     "handle": handle,
                     "message": _reason(handle, error),
                 }
                 continue
+            try:
+                key = store.save(png)
+            # OSError: the file write on disk. The R2 store raises botocore errors.
+            except (ClientError, BotoCoreError, OSError) as error:
+                log.warning("@%s picture not saved: %s", handle, error)
+                yield {
+                    "type": "error",
+                    "handle": handle,
+                    "message": REASONS["ImageStoreFailed"],
+                }
+                continue
             yield {
                 "type": "image",
                 "handle": handle,
-                "url": f"/api/images/{name}",
+                "key": key,
+                "url": store.url(key),
                 "prompt": prompt,
                 "seconds": round(time.monotonic() - started, 1),
                 "cost": cost(pick.model),
@@ -256,12 +274,20 @@ def run(
             continue
 
         text = ""
+        stopped = False
+        pieces = stream_reply(
+            pick.model,
+            system_prompt(handle, picks, members, human_name),
+            view_for(handle, transcript, human_name, picks),
+        )
         try:
-            for piece in stream_reply(
-                pick.model,
-                system_prompt(handle, picks, members, human_name),
-                view_for(handle, transcript, human_name, picks),
-            ):
+            for piece in pieces:
+                # The closing usage piece means the call is over, so it is never cut.
+                if "usage" not in piece and should_stop():
+                    stopped = True
+                    break
+                if "tick" in piece:
+                    continue
                 if "delta" in piece:
                     text += piece["delta"]
                     yield {"type": "delta", "handle": handle, "text": piece["delta"]}
@@ -277,6 +303,13 @@ def run(
         except (ClientError, BotoCoreError) as error:
             yield {"type": "error", "handle": handle, "message": _reason(handle, error)}
             continue
+        finally:
+            # Closing the generator closes the Bedrock stream, which ends the call.
+            pieces.close()
+        if stopped:
+            yield {"type": "stopped", "handle": handle}
+            reason = "stopped"
+            break
         if not text.strip():
             continue
         transcript.append({"author": handle, "text": text})
@@ -292,7 +325,12 @@ def run(
                 # prompt you meant.
                 queue[waiting[target]] = (target, queue[waiting[target]][1], text)
 
-    yield {"type": "done", "hops": hops, "capped": [handle for handle, _, _ in queue]}
+    yield {
+        "type": "done",
+        "hops": hops,
+        "capped": [handle for handle, _, _ in queue],
+        "reason": reason,
+    }
 
 
 # What the page shows for a failed call. The exception text itself stays in the API
@@ -317,6 +355,7 @@ REASONS = {
     "ImageRefused": "The image model refused this prompt.",
     "ImageMissing": "The image model sent back no image.",
     "EmptyImagePrompt": "Say what to draw in the message that mentions the image model.",
+    "ImageStoreFailed": "The picture was made but could not be saved.",
 }
 
 

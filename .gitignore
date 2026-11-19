@@ -20,6 +20,10 @@ dist/
 # Generated images
 backend/images/
 
+# Local-mode chat database (SQLite and its WAL files)
+backend/confab.db
+backend/confab.db-*
+
 # The built page, written into the package by `pnpm run build`
 backend/src/confab/static/
 

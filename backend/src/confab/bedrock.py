@@ -73,7 +73,11 @@ def _client(region: str):
 
 
 def stream_reply(model: Model, system: str, messages: list[dict]) -> Iterator[dict]:
-    """Yield {"delta": text} pieces, then one {"usage": ..., "stop": ...}."""
+    """Yield {"delta": text} and {"tick": True} pieces, then one {"usage", "stop"}.
+
+    A tick stands for a delta with no text (a reasoning model thinking), so the caller
+    can check for Stop while nothing is shown. Closing this generator closes the stream.
+    """
     inference: dict = {"maxTokens": model.max_tokens}
     if model.temperature:
         inference["temperature"] = 0.7
@@ -85,16 +89,19 @@ def stream_reply(model: Model, system: str, messages: list[dict]) -> Iterator[di
     )
     usage: dict = {}
     stop = ""
-    for event in response["stream"]:
-        if "contentBlockDelta" in event:
-            # Reasoning models also send reasoningContent deltas; only text is shown.
-            text = event["contentBlockDelta"]["delta"].get("text")
-            if text:
-                yield {"delta": text}
-        elif "messageStop" in event:
-            stop = event["messageStop"].get("stopReason", "")
-        elif "metadata" in event:
-            usage = event["metadata"].get("usage", {})
+    stream = response["stream"]
+    try:
+        for event in stream:
+            if "contentBlockDelta" in event:
+                # Reasoning models also send reasoningContent deltas; only text is shown.
+                text = event["contentBlockDelta"]["delta"].get("text")
+                yield {"delta": text} if text else {"tick": True}
+            elif "messageStop" in event:
+                stop = event["messageStop"].get("stopReason", "")
+            elif "metadata" in event:
+                usage = event["metadata"].get("usage", {})
+    finally:
+        stream.close()
     yield {
         "usage": {
             "in": usage.get("inputTokens", 0),

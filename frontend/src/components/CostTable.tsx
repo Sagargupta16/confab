@@ -15,11 +15,13 @@ function count(replies: number, images: number) {
   return parts.join(", ");
 }
 
-const Muted = () => (
-  <span className="text-muted/60" title="No published price">
+const Muted = ({ title = "No published price" }: { title?: string }) => (
+  <span className="text-muted/60" title={title}>
     --
   </span>
 );
+
+const NOT_REPORTED = "The model reports tokens only when a reply finishes; Bedrock still bills what was generated.";
 
 /** The same three columns in the scrolling body and the pinned total, so they line up. */
 const Columns = () => (
@@ -31,7 +33,7 @@ const Columns = () => (
 );
 
 export function CostTable({ summary, prices }: Props) {
-  const { rows, total, unpriced } = summary;
+  const { rows, total, unpriced, stopped } = summary;
   const priced = rows.some((row) => row.cost !== null);
 
   return (
@@ -71,12 +73,24 @@ export function CostTable({ summary, prices }: Props) {
                       </span>
                     </span>
                     <span className="mt-0.5 block truncate pl-3.5 text-[0.7rem] text-muted">
-                      @{row.handle} · {count(row.replies, row.images)}
+                      @{row.handle}
+                      {row.replies + row.images > 0 && ` · ${count(row.replies, row.images)}`}
                     </span>
+                    {row.stopped > 0 && (
+                      <span className="block truncate pl-3.5 text-[0.7rem] text-muted/80" title={NOT_REPORTED}>
+                        + {row.stopped} stopped
+                      </span>
+                    )}
                   </td>
-                  <td className="py-2 text-right tabular-nums text-muted">{tokens(row.tokens) ?? <Muted />}</td>
+                  <td className="py-2 text-right tabular-nums text-muted">
+                    {tokens(row.tokens) ?? <Muted title={row.replies + row.images > 0 ? undefined : NOT_REPORTED} />}
+                  </td>
                   <td className="py-2 pr-1 text-right font-medium tabular-nums text-ink">
-                    {row.cost === null ? <Muted /> : money(row.cost)}
+                    {row.cost === null ? (
+                      <Muted title={row.replies + row.images > 0 ? undefined : NOT_REPORTED} />
+                    ) : (
+                      money(row.cost)
+                    )}
                   </td>
                 </motion.tr>
               ))}
@@ -106,12 +120,18 @@ export function CostTable({ summary, prices }: Props) {
                   animate={{ opacity: 1, y: 0 }}
                   className="inline-block text-sm font-semibold tabular-nums text-accent"
                 >
-                  {priced || rows.length === 0 ? money(total) : <Muted />}
+                  {priced || rows.length === 0 ? money(total) : <Muted title={unpriced ? undefined : NOT_REPORTED} />}
                 </motion.span>
               </td>
             </tr>
           </tbody>
         </table>
+        {stopped > 0 && (
+          <p className="mt-2 px-1 text-[0.7rem] leading-snug text-muted">
+            {stopped === 1 ? "1 stopped reply is" : `${stopped} stopped replies are`} not in these figures: the model
+            reports tokens only when a reply finishes, and Bedrock still bills what was generated.
+          </p>
+        )}
         {prices && (
           <p className="mt-2 px-1 text-[0.7rem] leading-snug text-muted">
             USD, AWS price list read{" "}

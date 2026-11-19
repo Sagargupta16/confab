@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.4.0 - 2026-11-19
+
+- Chats are saved on the server. Locally that is a SQLite file, `backend/confab.db`
+  from a checkout and `.confab/confab.db` in the home folder for the installed
+  tool; hosted it is Postgres. Alembic migrations run when the local API starts.
+  The first time the page opens, a chat an older version kept in the browser is
+  copied across once as "Earlier chat".
+- A chats sidebar (new chat, rename, delete), a top bar with the title, mode and
+  cost, and a room panel with the members, hop cap and your name. A new chat
+  starts with the room you have open. Deleting a chat deletes its pictures.
+- Four modes in one pick: Open room, Debate, Build and Fact-check. They set the
+  members, their roles, who answers when nobody is mentioned and the hop cap.
+- Rounds run on the server. Stop now ends the round and closes the model call; a
+  dropped connection no longer loses the reply, because the page catches up from
+  the saved messages. One round per chat at a time; a second gets a 409.
+- Hosted mode (`CONFAB_ENVIRONMENT=production`): the page on GitHub Pages as an
+  installable PWA, the API on Vercel, chats in Neon Postgres, pictures in
+  Cloudflare R2, and GitHub sign-in limited to an allowlist of account ids
+  (`CONFAB_ALLOWED_GITHUB_IDS`). It refuses to start when a required variable is
+  missing. It is not deployed yet and its workflows have not run: the migration
+  and Pages jobs stay skipped until the repository variable `CONFAB_DEPLOY` is
+  set to `true`.
+- Local mode now answers 403 to any request that does not come from the machine
+  itself, that is addressed to a name other than `localhost` or `127.0.0.1`
+  (which closes DNS rebinding), or that another site's page sends.
+- Breaking, API: `POST /api/chat` now takes `{chat_id, text, human_name}`; the
+  server holds the transcript, the members and the roles, so the old body
+  (`messages`, `members`, `seats`, `default`, `max_hops`) is gone. New routes:
+  `GET` and `POST /api/chats`; `GET`, `PATCH` and `DELETE /api/chats/{chat_id}`;
+  `GET /api/chats/{chat_id}/messages` (with `from_seq`) and `DELETE` on the same
+  path to clear; `POST /api/chats/{chat_id}/stop`. Sign-in routes:
+  `POST /api/auth/oauth/github/authorize`, `POST /api/auth/oauth/github/callback`,
+  `POST /api/auth/refresh`, `GET /api/auth/me`, `POST /api/auth/logout`. Health:
+  `GET /api/health` (status, version, mode) and `GET /api/health/db`.
+  `GET /api/roster` also returns `modes`.
+- Upgrade note: the page no longer reads its transcript, members or roles from
+  `localStorage`; only the one-time import does.
+
 ## 0.3.0 - 2026-11-19
 
 - confab is now an installable tool with a `confab` command. It starts the API on
