@@ -143,8 +143,11 @@ jobs:
       - name: Alembic check on PostgreSQL
         run: uv run alembic check
 
+  # The hosted deploy is switched on by the repository variable CONFAB_DEPLOY=true.
+  # Until the Neon database, the Vercel secrets and the linked Vercel project exist,
+  # these two jobs are skipped, so main stays green and local mode ships by itself.
   migrate:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CONFAB_DEPLOY == 'true'
     needs: [frontend, backend, postgres-migrations]
     uses: ./.github/workflows/migrate.yml
     permissions:
@@ -153,7 +156,7 @@ jobs:
       CONFAB_DATABASE_URL: ${{ secrets.CONFAB_DATABASE_URL }}
 
   deploy-frontend:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.CONFAB_DEPLOY == 'true'
     needs: migrate
     uses: ./.github/workflows/deploy-frontend.yml
     permissions:

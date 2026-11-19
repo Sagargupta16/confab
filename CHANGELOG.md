@@ -19,7 +19,9 @@
   installable PWA, the API on Vercel, chats in Neon Postgres, pictures in
   Cloudflare R2, and GitHub sign-in limited to an allowlist of account ids
   (`CONFAB_ALLOWED_GITHUB_IDS`). It refuses to start when a required variable is
-  missing. It is not deployed yet and its workflows have not run.
+  missing. It is not deployed yet and its workflows have not run: the migration
+  and Pages jobs stay skipped until the repository variable `CONFAB_DEPLOY` is
+  set to `true`.
 - Local mode now answers 403 to any request that does not come from the machine
   itself, that is addressed to a name other than `localhost` or `127.0.0.1`
   (which closes DNS rebinding), or that another site's page sends.

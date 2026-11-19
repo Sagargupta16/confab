@@ -124,10 +124,11 @@ Variables (Config = not secret). Runtime ones are set by Sagar in the Vercel pro
 | `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_PUBLIC_BASE_URL` | Config | Vercel project |
 | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Secret | Vercel project |
 | `VITE_API_BASE_URL` | Config | GitHub repository variable, read by `deploy-frontend.yml` |
+| `CONFAB_DEPLOY` | Config | GitHub repository variable, the deploy switch: `migrate` and `deploy-frontend` in `ci.yml` run only when it is `true`. Unset as of 2026-11-19, so a push to `main` runs the three check jobs and skips both. Set it only after the Neon secret, every Vercel secret and the linked Vercel project exist: `gh variable set CONFAB_DEPLOY --repo Sagargupta16/confab --body true` |
 
 OAuth apps (GitHub): "confab (prod)", callback <https://sagargupta.online/confab/auth/callback/github>; "confab (dev)", callback <http://localhost:5183/auth/callback/github>. The callback is `CONFAB_FRONTEND_URL` plus `/auth/callback/github`, so each environment's `CONFAB_FRONTEND_URL` must match its app.
 
-Workflow chain, on a push to `main` only: `ci.yml` (frontend, backend, postgres-migrations) -> `migrate.yml` (`alembic upgrade head` against the GitHub secret, in the `production` environment) -> `deploy-frontend.yml` (builds the page, then waits up to 10 minutes for `/api/health` to report the frontend's version, mode `hosted`, and `/api/health/db` to say connected, before publishing Pages).
+Workflow chain, on a push to `main` with `CONFAB_DEPLOY` set to `true`: `ci.yml` (frontend, backend, postgres-migrations) -> `migrate.yml` (`alembic upgrade head` against the GitHub secret, in the `production` environment) -> `deploy-frontend.yml` (builds the page, then waits up to 10 minutes for `/api/health` to report the frontend's version, mode `hosted`, and `/api/health/db` to say connected, before publishing Pages).
 
 Sagar's steps, not the repo's: create the Neon database, the R2 bucket and the two OAuth apps; set every variable above and the GitHub secret and repository variable; allow Pages for the repo; merge; and watch the first live run.
 

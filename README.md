@@ -267,6 +267,7 @@ repo.
 | `R2_BUCKET` | no | Bucket for pictures. |
 | `R2_PUBLIC_BASE_URL` | no | Public `https` address of that bucket. |
 | `VITE_API_BASE_URL` | no | A GitHub repository variable, read at page build time: the API address. |
+| `CONFAB_DEPLOY` | no | A GitHub repository variable. The migration and Pages jobs run only when it is `true`; leave it unset until everything above exists. |
 
 The five `R2_*` variables are all or nothing, and Vercel requires them because it
 has no disk. The migration job also reads `CONFAB_DATABASE_URL` as a GitHub
