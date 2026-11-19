@@ -86,7 +86,18 @@ Credentials come from the environment of the process that starts the API:
 - `AWS_BEARER_TOKEN_BEDROCK`: a Bedrock API key. On Windows the API also reads
   it from your user-level environment variables.
 - Without that variable, your normal AWS credentials are used.
-- `AWS_REGION`: defaults to `us-east-1`.
+- `AWS_REGION`: defaults to `us-east-1`. Keep it a US region.
+
+The model ids in `models.json` are the US ones, and the image models answer only
+in `us-west-2`. Called from `eu-west-1`, a `us.` id and a plain id both came
+back as "The provided model identifier is invalid" (probed 2026-11-19), which
+the chat shows as "Bedrock rejected the request for this model." From
+`us-east-1` and `us-west-2` they answer. If your account works in another part
+of the world, swap the ids in `models.json` for the ones your region offers.
+
+Your account also needs access to each model. One it cannot use shows "This
+account has no access to the model." in the chat and the round goes on, so you
+can switch that member out.
 
 For one process and one port, build the page and let the API serve it:
 
