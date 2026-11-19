@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 - 2026-11-19
+
+- A failed model call now shows a fixed, plain message in the chat (throttled,
+  no access, timed out and so on). The exception text, which can name endpoints
+  and request ids, goes to the API log only. Fixes CodeQL `py/stack-trace-exposure`.
+
 ## 0.1.0 - 2026-11-19
 
 First version.
