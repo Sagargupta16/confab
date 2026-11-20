@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import ColumnElement, and_, delete, or_, select, update
 from sqlalchemy.orm import Session
 
-from .chat import HUMAN, ROLES
+from .chat import HUMAN, NO_HOP_LIMIT, ROLES
 from .db import get_session, utcnow
 from .deps import CurrentUser
 from .images import store
@@ -52,7 +52,8 @@ class ChatSettings(BaseModel):
     members: list[Annotated[str, Field(max_length=40)]] = Field(max_length=50)
     seats: dict[str, SeatSetting] = Field(default_factory=dict, max_length=50)
     default: str | None = Field(default=None, max_length=40)
-    max_hops: int = Field(default=6, ge=0, le=20)
+    # 0 to 20, or NO_HOP_LIMIT (-1): no cap, the round ends when nobody is mentioned.
+    max_hops: int = Field(default=6, ge=NO_HOP_LIMIT, le=20)
     mode: str | None = Field(default=None, max_length=40)
 
 

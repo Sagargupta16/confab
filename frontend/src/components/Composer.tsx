@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { mentionAtCaret } from "../mentions";
 import type { Member } from "../types";
 import { Avatar } from "./Avatar";
+import { Button } from "./Button";
 
 type Props = {
   draft: string;
@@ -33,7 +34,7 @@ export function Composer({ draft, onDraft, members, busy, stopping = false, focu
     : "Everyone in the chat";
   const options: Option[] = typing
     ? [
-        { handle: "all", label: everyone, color: "var(--color-accent)" },
+        { handle: "all", label: everyone, color: "var(--color-app-blue)" },
         ...members.map((member) => ({
           handle: member.handle,
           label: member.role ? `${member.name} · ${member.role}` : member.name,
@@ -81,17 +82,17 @@ export function Composer({ draft, onDraft, members, busy, stopping = false, focu
   }
 
   return (
-    <div className="border-t border-line bg-canvas px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+    <div className="shell border-t border-[var(--hairline-2)] bg-background px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
       <div className="relative mx-auto max-w-4xl">
         <AnimatePresence>
           {open && (
             <motion.ul
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.14 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
               role="listbox"
-              className="absolute bottom-full left-0 z-10 mb-2 max-h-64 w-full max-w-sm overflow-y-auto rounded-xl border border-line bg-panel p-1"
+              className="absolute bottom-full left-0 z-10 mb-2 max-h-64 w-full max-w-sm overflow-y-auto rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown p-1 shadow-[var(--shadow-float)]"
             >
               {options.map((option, index) => (
                 <li key={option.handle} role="option" aria-selected={index === active}>
@@ -102,13 +103,13 @@ export function Composer({ draft, onDraft, members, busy, stopping = false, focu
                       choose(option);
                     }}
                     onMouseEnter={() => setPicked(index)}
-                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm md:py-1.5 ${
-                      index === active ? "bg-raised" : ""
+                    className={`flex min-h-11 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] lg:pointer-fine:min-h-9 ${
+                      index === active ? "bg-[var(--overlay-4)]" : ""
                     }`}
                   >
                     <Avatar label={option.handle} color={option.color} size={24} />
-                    <span className="font-medium">@{option.handle}</span>
-                    <span className="truncate text-muted">{option.label}</span>
+                    <span className="font-medium text-text-primary">@{option.handle}</span>
+                    <span className="truncate text-text-tertiary">{option.label}</span>
                   </button>
                 </li>
               ))}
@@ -116,7 +117,7 @@ export function Composer({ draft, onDraft, members, busy, stopping = false, focu
           )}
         </AnimatePresence>
 
-        <div className="flex items-end gap-2 rounded-2xl border border-line bg-panel p-2 focus-within:border-accent/70">
+        <div className="control flex items-end gap-2 rounded-lg p-2">
           <textarea
             ref={box}
             name="message"
@@ -158,32 +159,28 @@ export function Composer({ draft, onDraft, members, busy, stopping = false, focu
                 submit();
               }
             }}
-            className="max-h-[33vh] min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-base leading-relaxed outline-none placeholder:text-muted md:text-[0.95rem]"
+            className="max-h-[33vh] min-h-11 flex-1 resize-none bg-transparent px-2 py-2.5 text-base leading-relaxed text-text-primary outline-none placeholder:text-text-tertiary lg:min-h-9 lg:py-2 lg:text-[0.95rem]"
           />
           {busy ? (
-            <motion.button
-              type="button"
+            <Button
+              variant="danger"
               onClick={onStop}
               disabled={stopping}
-              whileTap={{ scale: 0.92 }}
-              animate={stopping ? { opacity: [1, 0.4, 1] } : { opacity: 1 }}
-              transition={stopping ? { duration: 1, repeat: Infinity } : { duration: 0.15 }}
               title={stopping ? "Stopping after the current piece" : "Stop the round"}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-danger/50 text-danger disabled:cursor-default"
+              className={`px-0 ${stopping ? "animate-pulse disabled:opacity-100" : ""}`}
             >
               <Square size={16} fill="currentColor" />
-            </motion.button>
+            </Button>
           ) : (
-            <motion.button
-              type="button"
+            <Button
+              variant="primary"
               onClick={submit}
               disabled={!draft.trim()}
-              whileTap={{ scale: 0.92 }}
               title="Send"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-canvas disabled:opacity-30"
+              className="px-0 disabled:border-[var(--hairline-2)] disabled:bg-[var(--overlay-4)] disabled:text-text-tertiary disabled:opacity-100"
             >
               <Send size={17} />
-            </motion.button>
+            </Button>
           )}
         </div>
       </div>

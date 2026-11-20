@@ -13,7 +13,7 @@ type Props = {
   children: ReactNode;
 };
 
-const SLIDE = { type: "spring", stiffness: 420, damping: 40 } as const;
+const DRAWER = { type: "spring", stiffness: 300, damping: 30 } as const;
 
 /** A panel that slides in from one edge over a dimmed page; a tap on the page or Escape closes it. */
 export function Panel({ open, side, onClose, label, hideAt, width, children }: Props) {
@@ -37,7 +37,7 @@ export function Panel({ open, side, onClose, label, hideAt, width, children }: P
             transition={{ duration: 0.2 }}
             onClick={onClose}
             aria-hidden
-            className={`fixed inset-0 z-30 bg-canvas/75 ${hideAt}`}
+            className={`fixed inset-0 z-30 bg-[var(--modal-backdrop)] ${hideAt}`}
           />
           <motion.div
             key="panel"
@@ -47,10 +47,10 @@ export function Panel({ open, side, onClose, label, hideAt, width, children }: P
             initial={{ x: off }}
             animate={{ x: 0 }}
             exit={{ x: off }}
-            transition={SLIDE}
-            className={`fixed inset-y-0 z-40 flex flex-col overflow-hidden bg-panel ${
+            transition={DRAWER}
+            className={`shell fixed inset-y-0 z-40 flex flex-col overflow-hidden border-[var(--hairline-2)] bg-background text-text-primary shadow-[var(--shadow-float)] ${
               side === "left" ? "left-0 border-r" : "right-0 border-l"
-            } border-line ${width} ${hideAt}`}
+            } ${width} ${hideAt}`}
           >
             {children}
           </motion.div>

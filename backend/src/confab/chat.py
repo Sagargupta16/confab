@@ -19,6 +19,8 @@ log = logging.getLogger("uvicorn.error")
 HUMAN = "you"
 MENTION = re.compile(r"(?<![\w@.])@([a-z][a-z0-9-]*)", re.IGNORECASE)
 IMAGE_PROMPT_CAP = 4000
+# A chat's max_hops with no cap: the round ends when a reply mentions nobody, or on Stop.
+NO_HOP_LIMIT = -1
 
 
 @dataclass(frozen=True)
@@ -104,7 +106,11 @@ def mentioned(text: str, members: list[str], everyone: list[str]) -> list[str]:
 
 
 def system_prompt(
-    handle: str, picks: dict[str, Pick], members: list[str], human_name: str
+    handle: str,
+    picks: dict[str, Pick],
+    members: list[str],
+    human_name: str,
+    open_ended: bool = False,
 ) -> str:
     pick = picks[handle]
     others = []
@@ -133,6 +139,15 @@ def system_prompt(
         "To pull another model in, mention it with @handle. Only do that when you actually "
         "want its reply, because every mention makes that model answer."
     )
+    if open_ended:
+        # No hop cap: the round ends only when a reply mentions nobody, so say so.
+        prompt += (
+            "\nThis room has no cap on replies: the discussion goes on for as long as "
+            "someone is mentioned. Keep it going while there is real disagreement or "
+            "work left. Once the group has reached a conclusion, state it plainly and "
+            "mention nobody; a reply with no mention ends the discussion. Do not keep "
+            "it alive with thanks, summaries of summaries or new mentions."
+        )
     if pick.brief:
         # A preset has a name the others see; a custom role's label is its own brief, cut.
         custom = pick.brief.startswith((pick.role or "").removesuffix("..."))
@@ -193,8 +208,9 @@ def run(
 
     Yields events: start, then delta and end (or image) or error per reply, stopped
     when should_stop cut a reply short, then done with the reason the round ended. A
-    hop is a reply one model triggered by mentioning another; max_hops caps them. No
-    new reply starts once time.monotonic() passes deadline.
+    hop is a reply one model triggered by mentioning another; max_hops caps them, and
+    NO_HOP_LIMIT lifts the cap. No new reply starts once time.monotonic() passes
+    deadline.
     """
     transcript = list(transcript)
     everyone = [h for h in members if ROSTER[h].kind == "text"]
@@ -216,7 +232,7 @@ def run(
             break
         handle, asked_by, trigger = queue[0]
         if asked_by is not None:
-            if hops >= max_hops:
+            if max_hops != NO_HOP_LIMIT and hops >= max_hops:
                 reason = "hops"
                 break
             hops += 1
@@ -277,7 +293,7 @@ def run(
         stopped = False
         pieces = stream_reply(
             pick.model,
-            system_prompt(handle, picks, members, human_name),
+            system_prompt(handle, picks, members, human_name, max_hops == NO_HOP_LIMIT),
             view_for(handle, transcript, human_name, picks),
         )
         try:

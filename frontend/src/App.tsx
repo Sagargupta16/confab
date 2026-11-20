@@ -15,10 +15,13 @@ import {
   stopRound,
   streamRound,
 } from "./client";
+import { Button } from "./components/Button";
 import { ChatHeader, ClearButton, HopsSelect, ModeSelect, NameField } from "./components/ChatHeader";
 import { ChatList } from "./components/ChatList";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { Composer } from "./components/Composer";
 import { CostTable } from "./components/CostTable";
+import { LevelControl } from "./components/LevelControl";
 import { MessageList } from "./components/MessageList";
 import { Panel } from "./components/Panel";
 import { Roster } from "./components/Roster";
@@ -171,6 +174,11 @@ export function App({ session }: { session: Session }) {
   const [tab, setTab] = useState<Tab>("members");
   const [focusToken, setFocusToken] = useState(0);
   const [toast, setToast] = useState<{ key: number; text: string } | null>(null);
+  /** The confirm dialog's question, kept while it closes so its text does not blank mid-exit. */
+  const [asking, setAsking] = useState<{ kind: "delete"; id: string; title: string } | { kind: "clear"; id: string } | null>(
+    null,
+  );
+  const [askOpen, setAskOpen] = useState(false);
 
   const openRef = useRef<string | null>(null);
   const latest = useRef(messages);
@@ -202,6 +210,7 @@ export function App({ session }: { session: Session }) {
   const seats = useMemo(() => roster?.seats ?? [], [roster]);
   const roles = useMemo(() => roster?.roles ?? [], [roster]);
   const modes = useMemo(() => roster?.modes ?? [], [roster]);
+  const levels = useMemo(() => roster?.levels ?? [], [roster]);
 
   // A saved model that a seat no longer offers falls back to its default; an unknown role becomes no role.
   const choices = useMemo(() => {
@@ -366,6 +375,23 @@ export function App({ session }: { session: Session }) {
         max_hops: preset.max_hops,
         mode: preset.id,
       };
+    });
+  }
+
+  /**
+   * A cost level sets every seat's model, joined or not, and keeps each seat's role and brief. It is saved as
+   * ordinary seat choices; the mode, members, default and hop cap are left alone.
+   */
+  function pickLevel(id: string) {
+    const level = levels.find((item) => item.id === id);
+    if (!level) return;
+    updateSettings((now) => {
+      const seated: Record<string, SeatSetting> = { ...now.seats };
+      for (const seat of seats) {
+        const model = level.models[seat.handle];
+        if (model && seat.models.some((option) => option.id === model)) seated[seat.handle] = { ...choices[seat.handle], model };
+      }
+      return { ...now, seats: seated };
     });
   }
 
@@ -710,15 +736,17 @@ export function App({ session }: { session: Session }) {
     }
   }
 
-  async function remove(id: string) {
+  /** Delete asks first, in the house dialog. */
+  function remove(id: string) {
     const chat = chatsRef.current?.find((item) => item.id === id);
-    if (!chat || !confirm(`Delete "${chat.title}"? Its messages and pictures go too.`)) return;
-    try {
-      await deleteChat(id);
-    } catch (error) {
-      say(errorText(error));
-      return;
-    }
+    if (!chat) return;
+    setAsking({ kind: "delete", id, title: chat.title });
+    setAskOpen(true);
+  }
+
+  /** Runs from the dialog: a failure throws, so the dialog stays open with the server's line ("Stop the round first."). */
+  async function deleteNow(id: string) {
+    await deleteChat(id);
     const all = chatsRef.current ?? [];
     const at = all.findIndex((item) => item.id === id);
     const rest = all.filter((item) => item.id !== id);
@@ -731,16 +759,17 @@ export function App({ session }: { session: Session }) {
     else void create(settingsRef.current);
   }
 
-  async function clear() {
+  function clear() {
     const id = openRef.current;
-    if (!id || busy || latest.current.length === 0 || !confirm("Clear the whole chat?")) return;
-    try {
-      await clearChat(id);
-      if (openRef.current === id) setMessages([]);
-      setRoomOpen(false);
-    } catch (error) {
-      say(errorText(error));
-    }
+    if (!id || busy || latest.current.length === 0) return;
+    setAsking({ kind: "clear", id });
+    setAskOpen(true);
+  }
+
+  async function clearNow(id: string) {
+    await clearChat(id);
+    if (openRef.current === id) setMessages([]);
+    setRoomOpen(false);
   }
 
   // ---- boot, and the phone coming back ----
@@ -850,6 +879,14 @@ export function App({ session }: { session: Session }) {
   const maxHops = settings?.max_hops ?? 6;
   const canClear = ready && !busy && messages.length > 0;
 
+  // The lit level is worked out, never stored: the one whose pick every seat's model matches (a seat with no saved
+  // choice counts as its default model, which is how `choices` resolves it).
+  const activeLevel =
+    seats.length === 0
+      ? null
+      : (levels.find((level) => seats.every((seat) => choices[seat.handle]?.model === level.models[seat.handle]))?.id ??
+        null);
+
   const panel = (id: string) => (
     <Sidebar
       id={id}
@@ -857,12 +894,14 @@ export function App({ session }: { session: Session }) {
       onTab={setTab}
       memberCount={`${joined.size}/${seats.length}`}
       costLabel={total}
+      top={<LevelControl id={id} levels={levels} active={activeLevel} onPick={pickLevel} disabled={!ready} />}
       members={
         <Roster
           seats={seats}
           members={members}
           choices={choices}
           roles={roles}
+          levels={levels}
           joined={joined}
           defaultHandle={answersByDefault}
           totals={totals}
@@ -888,7 +927,7 @@ export function App({ session }: { session: Session }) {
       onOpen={(next) => void openChat(next)}
       onNew={() => void newChat()}
       onRename={(target, title) => void rename(target, title)}
-      onDelete={(target) => void remove(target)}
+      onDelete={remove}
       onClose={onClose}
     />
   );
@@ -896,138 +935,144 @@ export function App({ session }: { session: Session }) {
   const preset = modes.find((mode) => mode.id === settings?.mode);
 
   return (
-    <div className="flex h-dvh overflow-hidden">
-      <aside className="hidden w-64 shrink-0 border-r border-line bg-panel/40 md:block">{list("aside")}</aside>
-      <Panel
-        open={drawerOpen}
-        side="left"
-        onClose={closeDrawer}
-        label="Chats"
-        hideAt="md:hidden"
-        width="w-[min(19rem,86vw)]"
-      >
-        {list("drawer", closeDrawer)}
-      </Panel>
+    // The frame: on a desktop a bordered 8px workspace inset 12px on the outer canvas, with the hairline grid and
+    // two scan beams behind the content; on a phone edge to edge, no grid.
+    <div className="app-canvas h-dvh overflow-hidden p-0 lg:p-3">
+      <div className="app-workspace relative flex h-full overflow-hidden bg-background lg:rounded-lg lg:border lg:border-[var(--hairline-2)]">
+        <div className="workspace-motion-field hidden lg:block" aria-hidden="true" />
+        <div className="workspace-motion-beams hidden lg:block" aria-hidden="true">
+          <span className="workspace-motion-beam workspace-motion-beam-x" />
+          <span className="workspace-motion-beam workspace-motion-beam-y" />
+        </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <ChatHeader
-          title={current?.title ?? null}
-          onRename={(title) => chatId && void rename(chatId, title)}
-          modes={modes}
-          mode={settings?.mode ?? null}
-          onMode={pickMode}
-          present={present}
-          speaking={speaking}
-          costLabel={total}
-          costActive={tab === "cost"}
-          onCost={() => showRoom("cost")}
-          onMembers={() => showRoom("members")}
-          humanName={humanName}
-          onName={setHumanName}
-          maxHops={maxHops}
-          onHops={(hops) => updateSettings((now) => ({ ...now, max_hops: hops }))}
-          canClear={canClear}
-          onClear={() => void clear()}
-          roomOpen={roomOpen}
-          onRoom={() => setRoomOpen((open) => !open)}
-          onMenu={() => setDrawerOpen(true)}
-          ready={ready}
-        />
+        <aside className="relative z-10 hidden w-60 shrink-0 border-r border-[var(--hairline-2)] md:block">
+          {list("aside")}
+        </aside>
+        <Panel
+          open={drawerOpen}
+          side="left"
+          onClose={closeDrawer}
+          label="Chats"
+          hideAt="md:hidden"
+          width="w-[min(19rem,86vw)]"
+        >
+          {list("drawer", closeDrawer)}
+        </Panel>
 
-        <div className="flex min-h-0 flex-1">
-          <main className="relative flex min-w-0 flex-1 flex-col">
-            {loadError ? (
-              <div className="m-auto max-w-md px-6 text-center" role="alert">
-                <p className="text-sm text-danger">Could not load confab: {loadError}</p>
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="mt-4 h-10 rounded-lg border border-line px-4 text-sm text-ink transition-colors hover:border-accent"
-                >
-                  Try again
-                </button>
-              </div>
-            ) : openError ? (
-              <div className="m-auto max-w-md px-6 text-center" role="alert">
-                <p className="text-sm text-danger">{openError}</p>
-                <button
-                  type="button"
-                  onClick={() => chatId && void openChat(chatId)}
-                  className="mt-4 h-10 rounded-lg border border-line px-4 text-sm text-ink transition-colors hover:border-accent"
-                >
-                  Try again
-                </button>
-              </div>
-            ) : opening ? (
-              <div className="m-auto flex items-center gap-1.5" aria-label="Opening the chat">
-                {[0, 1, 2].map((dot) => (
-                  <motion.span
-                    key={dot}
-                    className="size-2 rounded-full bg-accent"
-                    animate={{ opacity: [0.25, 1, 0.25], y: [0, -4, 0] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: dot * 0.15 }}
-                  />
-                ))}
-              </div>
-            ) : (
-              <MessageList
-                key={chatId ?? "none"}
-                messages={messages}
-                members={members}
-                modelNames={modelNames}
-                humanName={humanName.trim() || "You"}
-                imageInRoom={present.some((member) => member.kind === "image")}
-                onSuggest={(text) => {
-                  setDraft(text);
-                  setFocusToken((token) => token + 1);
-                }}
-              />
-            )}
-            <Composer
-              draft={draft}
-              onDraft={setDraft}
-              members={present}
-              busy={busy}
-              stopping={stopping}
-              focusToken={focusToken}
-              onSend={(text) => void send(text)}
-              onStop={() => void stop()}
-            />
-            <AnimatePresence>
-              {toast && (
-                <motion.p
-                  key={toast.key}
-                  role="status"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 12 }}
-                  transition={{ type: "spring", stiffness: 420, damping: 32 }}
-                  className="pointer-events-none absolute inset-x-3 bottom-24 z-20 mx-auto w-fit max-w-[min(28rem,calc(100%-1.5rem))] rounded-lg border border-line bg-raised px-4 py-2 text-center text-sm text-ink"
-                >
-                  {toast.text}
-                </motion.p>
+        <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+          <ChatHeader
+            title={current?.title ?? null}
+            onRename={(title) => chatId && void rename(chatId, title)}
+            modes={modes}
+            mode={settings?.mode ?? null}
+            onMode={pickMode}
+            present={present}
+            speaking={speaking}
+            costLabel={total}
+            costActive={tab === "cost"}
+            onCost={() => showRoom("cost")}
+            onMembers={() => showRoom("members")}
+            humanName={humanName}
+            onName={setHumanName}
+            maxHops={maxHops}
+            onHops={(hops) => updateSettings((now) => ({ ...now, max_hops: hops }))}
+            canClear={canClear}
+            onClear={clear}
+            roomOpen={roomOpen}
+            onRoom={() => setRoomOpen((open) => !open)}
+            onMenu={() => setDrawerOpen(true)}
+            ready={ready}
+            running={busy}
+          />
+
+          <div className="flex min-h-0 flex-1">
+            <main className="relative flex min-w-0 flex-1 flex-col">
+              {loadError ? (
+                <div className="m-auto max-w-md px-6 text-center" role="alert">
+                  <p className="text-sm text-app-red">Could not load confab: {loadError}</p>
+                  <Button onClick={() => window.location.reload()} className="mt-4">
+                    Try again
+                  </Button>
+                </div>
+              ) : openError ? (
+                <div className="m-auto max-w-md px-6 text-center" role="alert">
+                  <p className="text-sm text-app-red">{openError}</p>
+                  <Button onClick={() => chatId && void openChat(chatId)} className="mt-4">
+                    Try again
+                  </Button>
+                </div>
+              ) : opening ? (
+                <div className="m-auto flex items-center gap-1.5" aria-label="Opening the chat">
+                  {[0, 1, 2].map((dot) => (
+                    <motion.span
+                      key={dot}
+                      className="size-2 rounded-full bg-app-blue"
+                      animate={{ opacity: [0.25, 1, 0.25], y: [0, -4, 0] }}
+                      transition={{ duration: 1, repeat: Infinity, delay: dot * 0.15 }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <MessageList
+                  key={chatId ?? "none"}
+                  messages={messages}
+                  members={members}
+                  modelNames={modelNames}
+                  humanName={humanName.trim() || "You"}
+                  imageInRoom={present.some((member) => member.kind === "image")}
+                  onSuggest={(text) => {
+                    setDraft(text);
+                    setFocusToken((token) => token + 1);
+                  }}
+                />
               )}
-            </AnimatePresence>
-          </main>
-          <aside className="hidden w-72 shrink-0 flex-col border-l border-line lg:flex">{panel("aside")}</aside>
+              <Composer
+                draft={draft}
+                onDraft={setDraft}
+                members={present}
+                busy={busy}
+                stopping={stopping}
+                focusToken={focusToken}
+                onSend={(text) => void send(text)}
+                onStop={() => void stop()}
+              />
+              <AnimatePresence>
+                {toast && (
+                  <motion.p
+                    key={toast.key}
+                    role="status"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 12 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 32 }}
+                    className="pointer-events-none absolute inset-x-3 bottom-24 z-20 mx-auto w-fit max-w-[min(28rem,calc(100%-1.5rem))] rounded-lg border border-[var(--hairline-2)] bg-surface-dropdown px-4 py-2 text-center text-sm text-text-primary shadow-[var(--shadow-float)]"
+                  >
+                    {toast.text}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </main>
+            {/* The room panel has its own canvas, so the grid stays out of it. */}
+            <aside className="hidden w-72 shrink-0 flex-col border-l border-[var(--hairline-2)] bg-background xl:w-80 lg:flex">{panel("aside")}</aside>
+          </div>
         </div>
       </div>
 
       <Panel open={roomOpen} side="right" onClose={closeRoom} label="Room" hideAt="lg:hidden" width="w-full sm:w-80">
-        <div className="flex shrink-0 items-center gap-2 border-b border-line px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <div className="flex shrink-0 items-center gap-2 border-b border-[var(--hairline-2)] px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
           <h2 className="flex-1 text-base font-semibold tracking-tight">Room</h2>
           <button
             type="button"
             onClick={closeRoom}
             title="Close"
             aria-label="Close the room"
-            className="flex size-10 items-center justify-center rounded-lg text-muted transition-colors hover:text-ink"
+            className="lift flex size-11 items-center justify-center rounded-md text-text-tertiary hover-fine:bg-[var(--overlay-2)] hover-fine:text-text-primary"
           >
             <X size={18} />
           </button>
         </div>
         {/* What the header has no room for at this width. */}
-        <div className="shrink-0 space-y-2 border-b border-line px-3 py-3 lg:hidden">
+        <div className="shrink-0 space-y-2 border-b border-[var(--hairline-2)] px-3 py-3 lg:hidden">
           <div className="md:hidden">
             <ModeSelect size="sheet" modes={modes} mode={settings?.mode ?? null} onMode={pickMode} disabled={!ready} />
             <AnimatePresence mode="wait" initial={false}>
@@ -1037,7 +1082,7 @@ export function App({ session }: { session: Session }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.15 }}
-                className="px-1 pt-1.5 text-xs leading-snug text-muted"
+                className="px-1 pt-1.5 text-xs leading-snug text-text-tertiary"
               >
                 {preset?.description ?? "Your own room: the members, roles and hop cap you set."}
               </motion.p>
@@ -1053,11 +1098,27 @@ export function App({ session }: { session: Session }) {
             />
           </div>
           <div className="md:hidden">
-            <ClearButton size="sheet" onClear={() => void clear()} disabled={!canClear} />
+            <ClearButton size="sheet" onClear={clear} disabled={!canClear} />
           </div>
         </div>
         <div className="flex min-h-0 flex-1 flex-col">{panel("overlay")}</div>
       </Panel>
+
+      <ConfirmDialog
+        open={askOpen}
+        title={asking?.kind === "clear" ? "Clear this chat?" : "Delete this chat?"}
+        description={
+          asking?.kind === "delete"
+            ? `"${asking.title}" goes, with its messages and pictures. This cannot be undone.`
+            : "Every message in this chat goes. The room you set up stays, and so do its pictures."
+        }
+        confirmLabel={asking?.kind === "clear" ? "Clear" : "Delete"}
+        onConfirm={() => {
+          if (!asking) return Promise.resolve();
+          return asking.kind === "delete" ? deleteNow(asking.id) : clearNow(asking.id);
+        }}
+        onClose={() => setAskOpen(false)}
+      />
     </div>
   );
 }

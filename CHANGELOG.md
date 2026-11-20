@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.5.0 - 2026-11-20
+
+- A new look for the whole app, taken from ledger-sync and portfolio-react: a
+  near-black canvas with a blue cast, flat surfaces with hairline borders, one
+  blue accent and one 8px radius family. On a desktop the app is a bordered
+  window on a darker canvas with a faint grid and two slow scan lines behind
+  it; on a phone it stays edge to edge. The chat list has a sliding highlight
+  on the open chat, a live dot on a chat whose round is running and a
+  staggered reveal. The top bar has inset controls, a cost that counts up and
+  a thin loading bar while a round runs. Message bubbles are flat, with your
+  own tinted blue; the composer, its mention popup, the picture viewer, the
+  member rows, the Cost tab, the room sheet and the sign-in card all follow.
+  The old colour tokens are removed.
+- Inter and JetBrains Mono are now bundled with the page (`@fontsource-variable`),
+  so the fonts no longer depend on what the device has. Figures, costs and
+  labels are set in the mono face with aligned digits.
+- Delete chat and Clear chat ask in a dialog of the app's own, with a pending
+  state and an error line, instead of the browser's `confirm()` box.
+- The model picker is a menu of model names with a tick on the one in use. It no
+  longer shows prices; the Cost tab still does.
+- Cost levels: Cheap, Medium and Intense set every seat's model in one pick.
+  Cheap is each seat's lowest-priced model, Intense its default, Medium the
+  priced model nearest the middle. A level is not stored: it writes ordinary
+  seat choices, and the control shows no level once a seat is changed by hand.
+  The model menu tags the model each level uses.
+- Hops has a "No limit" option. With it the models answer each other with no cap
+  and the round ends by itself when a reply mentions nobody; each model is told
+  so, and told to state the conclusion and mention no one once the group agrees.
+  Stop still ends the round at once. The notice at the hop cap now points to it.
+- Removed Devstral 2 (`@mistral`) and GLM 4.7 Flash (`@glm`): AWS lists both as
+  Legacy since 2026-09-30 with end of life on 2027-03-30. The roster is now 12
+  seats and 33 models, none of them on the AWS legacy and end-of-life page as
+  read on 2026-11-20. A chat that had one of the two picked uses the seat's
+  default model from now on.
+- API: `GET /api/roster` also returns `levels`, a list of
+  `{id, label, description, models}` where `models` maps every seat's handle to a
+  model id. A chat's `max_hops` setting accepts `-1` for no limit, beside 0 to 20.
+- Dependencies: boto3 and botocore 1.44.7, pnpm 12.21.0.
+
 ## 0.4.0 - 2026-11-19
 
 - Chats are saved on the server. Locally that is a SQLite file, `backend/confab.db`

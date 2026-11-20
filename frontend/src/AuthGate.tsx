@@ -1,7 +1,9 @@
+import { WifiOff } from "lucide-react";
 import { motion } from "motion/react";
 import { type ReactNode, useEffect, useState } from "react";
 import { API_BASE, ApiError, clearTokens, finishSignIn, hasTokens, isCallbackPath, onSignedOut, signOut } from "./auth";
 import { getHealth, getMe } from "./client";
+import { Button } from "./components/Button";
 import { GateCard, SignIn } from "./components/SignIn";
 import type { Me, ServerMode } from "./wire";
 
@@ -86,32 +88,45 @@ export function AuthGate({ children }: { children: (session: Session) => ReactNo
   if (state.kind === "unreachable") {
     return (
       <GateCard>
-        <h1 className="text-xl font-semibold text-ink">Could not reach the API.</h1>
-        {API_BASE === "" && (
-          <p className="mt-2 text-sm text-muted">
-            Start it with <code className="font-mono text-ink">pnpm run dev</code> from the repo root.
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            setState({ kind: "loading" });
-            setAttempt((n) => n + 1);
-          }}
-          className="mt-6 min-h-11 w-full rounded-lg border border-line bg-raised px-4 text-base font-medium text-ink transition-colors hover:border-accent"
-        >
-          Try again
-        </button>
+        <div className="flex flex-col items-center text-center">
+          <span className="flex size-12 items-center justify-center rounded-lg border border-[var(--hairline-2)] bg-[var(--overlay-3)] text-text-secondary">
+            <WifiOff aria-hidden size={20} />
+          </span>
+          <h1 className="mt-4 text-base font-semibold">Could not reach the API.</h1>
+          {API_BASE === "" && (
+            <p className="mt-2 text-sm text-text-tertiary">
+              Start it with <code className="figure text-text-primary">pnpm run dev</code> from the repo root.
+            </p>
+          )}
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setState({ kind: "loading" });
+              setAttempt((n) => n + 1);
+            }}
+            className="mt-6 w-full"
+          >
+            Try again
+          </Button>
+        </div>
       </GateCard>
     );
   }
   return (
-    <div className="flex min-h-full items-center justify-center bg-canvas">
+    <div
+      role="status"
+      aria-label="Loading"
+      className="flex min-h-full items-center justify-center bg-background px-4"
+    >
       <motion.div
-        className="size-3 rounded-full bg-accent"
-        animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
-        transition={{ duration: 1.2, repeat: Infinity }}
-      />
+        className="w-full max-w-sm space-y-2"
+        animate={{ opacity: [0.65, 1, 0.65] }}
+        transition={{ duration: 1.35, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <div className="h-4 w-1/3 rounded-md bg-white/[0.03]" />
+        <div className="h-10 rounded-md bg-white/[0.03]" />
+        <div className="h-10 rounded-md bg-white/[0.03]" />
+      </motion.div>
     </div>
   );
 }

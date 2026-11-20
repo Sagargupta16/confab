@@ -1,14 +1,8 @@
-import type { ChatMessage, Member, Price, Usage } from "./types";
+import type { ChatMessage, Member, Usage } from "./types";
 
 const compactFormat = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
 const cents = new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const small = new Intl.NumberFormat("en", { maximumSignificantDigits: 2 });
-const rate = new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-
-/** A list price: whole dollars stay whole ("$44"), anything with cents shows at least two decimals ("$8.80"). */
-function dollars(usd: number): string {
-  return `$${Number.isInteger(usd) ? usd : rate.format(usd)}`;
-}
 
 /** 12345 -> "12.3K". */
 export function compact(count: number): string {
@@ -20,18 +14,6 @@ export function money(usd: number): string {
   if (usd <= 0) return "$0";
   if (usd >= 0.01) return `$${cents.format(usd)}`;
   return `$${small.format(usd)}`;
-}
-
-/** A price split in two, so a narrow control can drop the unit and never cut into the figure. */
-export function priceParts(price: Price): { figure: string; unit: string } {
-  if ("image" in price) return { figure: dollars(price.image), unit: "per image" };
-  return { figure: `${dollars(price.in)} / ${dollars(price.out)}`, unit: "per M" };
-}
-
-/** What a model charges, as the picker list shows it: "$8.80 / $44 per M" or "$0.14 per image". */
-export function priceLabel(price: Price): string {
-  const { figure, unit } = priceParts(price);
-  return `${figure} ${unit}`;
 }
 
 export type CostRow = {
@@ -72,7 +54,7 @@ export function costRows(
         key,
         handle: message.author,
         name: message.model ? (modelNames[message.model] ?? message.model) : `@${message.author} (earlier)`,
-        color: members[message.author]?.color ?? "var(--color-muted)",
+        color: members[message.author]?.color ?? "var(--color-text-tertiary)",
         replies: 0,
         images: 0,
         stopped: 0,

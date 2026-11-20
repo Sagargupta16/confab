@@ -49,7 +49,7 @@ PING_SECONDS = 15
 
 NOTICES = {
     "hops": "Stopped at the hop cap ({hops}). Not answered: {waiting}. Mention them to "
-    "carry on.",
+    "carry on, or set Hops to No limit.",
     "time": "Stopped at the time limit. Not answered: {waiting}. Mention them to carry "
     "on.",
 }

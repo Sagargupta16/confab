@@ -70,6 +70,15 @@ export type ModePreset = {
   max_hops: number;
 };
 
+/** A cost level: one pick that sets every seat's model by price. Nothing is stored for it; see App's pickLevel. */
+export type LevelPreset = {
+  id: "cheap" | "medium" | "intense";
+  label: string;
+  description: string;
+  /** The model id it picks, for every seat in the roster. */
+  models: Record<string, string>;
+};
+
 export type RoundReason = "complete" | "hops" | "time" | "stopped" | "failed";
 export type RoundEvent =
   | { type: "accepted"; round_id: string; title: string; message: ApiMessage }
