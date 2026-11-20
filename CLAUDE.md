@@ -160,6 +160,7 @@ Sagar's steps, not the repo's: create the Neon database, the R2 bucket and the t
 - Local round state is reset at startup (`reset_local_rounds`); hosted state is cleaned lazily when the next round claims a chat.
 - A model mentioned by you and then again by an earlier reply in the same round answers once; `run()` skips a handle that is already waiting. One exception: an image seat that is waiting takes the newest reply that names it as its prompt, so "@nova write a prompt and give it to @stability" draws nova's sentence, not your instruction (found live, 2026-11-19).
 - The preview pane cannot load a Vite server started with `--host 127.0.0.1`; leave the flag off.
+- `frontend/pnpm-workspace.yaml` overrides `workbox-build>glob` to 14.0.6 (0.5.1) to clear the minimatch advisory. Never override minimatch itself: minimatch 11 under glob 11 still builds, but the service worker's precache list falls from 31 files to 8 with no error (tried 2026-11-20). After any change to the PWA build chain, check the `precache  N entries` line of `pnpm run build`; it should read 31. Remove the override once workbox-build depends on glob 14 or later.
 - There is no `.env.example`: the workspace permission rules deny writing `.env*` files. The variables are documented in the README.
 
 ## Repo-specific rules
