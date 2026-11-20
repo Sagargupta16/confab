@@ -1,0 +1,9 @@
+packages:
+  - .
+
+# minimatch 7.0.0 to 11.0.0 has a denial-of-service advisory (patched in 11.0.1). It came in through glob 11
+# under workbox-build under vite-plugin-pwa, at build time only. glob 14 uses minimatch 11. Forcing minimatch
+# 11 under glob 11 instead looks fine but empties the service worker's precache list (tried 2026-11-20), so
+# override glob, never minimatch. Remove this once workbox-build depends on glob 14 or later.
+overrides:
+  "workbox-build>glob": 14.0.6

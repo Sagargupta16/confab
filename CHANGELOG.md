@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1 - 2026-11-20
+
+- Security: the page's build no longer installs minimatch 10.2.6, which has a
+  denial-of-service advisory (patched in 11.0.1). It came in at build time
+  through glob 11 under workbox-build under vite-plugin-pwa; an override in
+  `frontend/pnpm-workspace.yaml` now gives workbox-build glob 14.0.6, which
+  uses minimatch 11.0.9. The built service worker precaches the same 31 files
+  as before. Nothing that ships to the browser changed.
+
 ## 0.5.0 - 2026-11-20
 
 - A new look for the whole app, taken from ledger-sync and portfolio-react: a
