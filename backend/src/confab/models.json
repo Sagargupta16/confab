@@ -126,12 +126,6 @@
         "temperature": true
       },
       {
-        "id": "mistral.devstral-2-123b",
-        "name": "Devstral 2",
-        "maxTokens": 8192,
-        "temperature": true
-      },
-      {
         "id": "mistral.magistral-small-2509",
         "name": "Magistral Small 1.2",
         "maxTokens": 16384,
@@ -292,12 +286,6 @@
         "name": "GLM 5.3",
         "maxTokens": 16384,
         "temperature": false
-      },
-      {
-        "id": "zai.glm-4.7-flash",
-        "name": "GLM 4.7 Flash",
-        "maxTokens": 8192,
-        "temperature": true
       }
     ]
   },

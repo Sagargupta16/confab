@@ -24,6 +24,7 @@ from .chat import ROLES
 from .db import SessionLocal, migrate_local
 from .deps import CurrentUser
 from .images import IMAGE_DIR
+from .levels import LEVELS
 from .modes import MODES
 from .roster import PRICES, ROSTER
 from .settings import settings
@@ -145,6 +146,7 @@ def roster(_user: CurrentUser) -> dict:
         ],
         "prices": PRICES,
         "modes": MODES,
+        "levels": LEVELS,
     }
 
 

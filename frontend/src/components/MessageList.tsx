@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import type { ChatMessage, Member } from "../types";
 import { Message } from "./Message";
@@ -46,24 +47,29 @@ export function MessageList({ messages, members, modelNames, humanName, imageInR
       {messages.length === 0 ? (
         <div className="mx-auto flex min-h-full max-w-xl flex-col justify-center gap-5">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Everyone is here.</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              Type <span className="text-ink">@</span> to pick who answers, or{" "}
-              <span className="text-ink">@all</span> for the whole room. When a model mentions another, that one
-              answers too, up to the hop cap.
+            <h2 className="text-xl font-semibold tracking-tight text-text-primary">Everyone is here.</h2>
+            <p className="mt-2 text-sm leading-relaxed text-text-tertiary">
+              Type <span className="text-text-primary">@</span> to pick who answers, or{" "}
+              <span className="text-text-primary">@all</span> for the whole room. When a model mentions another, that
+              one answers too, up to the hop cap.
             </p>
           </div>
           <ul className="space-y-2">
-            {starters.map((starter) => (
-              <li key={starter}>
+            {starters.map((starter, index) => (
+              <motion.li
+                key={starter}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: 0.08 + Math.min(index * 0.05, 0.3) }}
+              >
                 <button
                   type="button"
                   onClick={() => onSuggest(starter)}
-                  className="w-full rounded-xl border border-line bg-panel px-4 py-2.5 text-left text-sm text-muted transition-colors hover:border-accent/60 hover:text-ink"
+                  className="control lift min-h-11 w-full rounded-md px-3.5 py-2.5 text-left text-[13px] leading-snug break-words text-text-secondary hover-fine:text-text-primary"
                 >
                   {starter}
                 </button>
-              </li>
+              </motion.li>
             ))}
           </ul>
         </div>

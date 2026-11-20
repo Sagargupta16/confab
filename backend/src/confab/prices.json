@@ -51,10 +51,6 @@
       "in": 0.5,
       "out": 1.5
     },
-    "mistral.devstral-2-123b": {
-      "in": 0.4,
-      "out": 2.0
-    },
     "mistral.magistral-small-2509": {
       "in": 0.5,
       "out": 1.5
@@ -118,10 +114,6 @@
     "nvidia.nemotron-nano-3-30b": {
       "in": 0.06,
       "out": 0.24
-    },
-    "zai.glm-4.7-flash": {
-      "in": 0.07,
-      "out": 0.4
     },
     "stability.stable-image-ultra-v1:1": {
       "image": 0.14

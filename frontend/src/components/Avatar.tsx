@@ -5,7 +5,7 @@ export function Avatar({ label, color, size = 32, dim = false }: Props) {
   return (
     <span
       aria-hidden
-      className="inline-flex shrink-0 items-center justify-center rounded-full border font-semibold uppercase transition-opacity"
+      className="inline-flex shrink-0 select-none items-center justify-center rounded-full border font-mono font-semibold uppercase leading-none transition-opacity duration-[var(--duration-normal)]"
       style={{
         width: size,
         height: size,

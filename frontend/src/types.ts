@@ -1,4 +1,4 @@
-import type { ApiMessage, MessageStatus, ModePreset } from "./wire";
+import type { ApiMessage, LevelPreset, MessageStatus, ModePreset } from "./wire";
 
 export type Kind = "text" | "image";
 /** USD. Text: per million tokens. Image: per image. */
@@ -7,7 +7,7 @@ export type ModelOption = { id: string; name: string; price: Price | null };
 export type Seat = { handle: string; provider: string; kind: Kind; color: string; joined: boolean; default: string; models: ModelOption[] };
 export type Role = { id: string; label: string; brief: string };
 export type PriceSource = { checked: string; source: string; currency: "USD" };
-export type Roster = { seats: Seat[]; roles: Role[]; prices: PriceSource; modes: ModePreset[] };
+export type Roster = { seats: Seat[]; roles: Role[]; prices: PriceSource; modes: ModePreset[]; levels: LevelPreset[] };
 export type SeatChoice = { model: string; role: string | null; brief: string };
 /** A seat with its chosen model and role applied: what components render. */
 export type Member = { handle: string; name: string; provider: string; color: string; joined: boolean; kind: Kind; model: ModelOption; role: string | null };

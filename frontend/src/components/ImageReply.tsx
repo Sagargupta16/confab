@@ -29,7 +29,7 @@ export function ImageReply({ image, streaming, color }: Props) {
 
   if (failed) {
     return (
-      <div className="w-[22rem] max-w-full rounded-xl border border-line px-4 py-6 text-center text-xs text-muted">
+      <div className="w-[22rem] max-w-full rounded-lg border border-[var(--hairline-2)] px-4 py-6 text-center text-xs text-text-tertiary">
         Image no longer on disk
       </div>
     );
@@ -44,7 +44,7 @@ export function ImageReply({ image, streaming, color }: Props) {
         onClick={() => image && loaded && setOpen(true)}
         disabled={!image || !loaded}
         aria-label="Open the image full size"
-        className="relative block aspect-square w-full overflow-hidden rounded-xl border border-line bg-raised disabled:cursor-default"
+        className="relative block aspect-square w-full overflow-hidden rounded-lg border border-[var(--hairline-2)] bg-surface-3 disabled:cursor-default"
       >
         <AnimatePresence>
           {drawing && (
@@ -62,7 +62,7 @@ export function ImageReply({ image, streaming, color }: Props) {
               >
                 <ImageIcon size={30} style={{ color }} />
               </motion.span>
-              <span className="text-xs tabular-nums text-muted">
+              <span className="figure text-[11px] text-text-tertiary">
                 {streaming || elapsed > 0 ? `Drawing... ${elapsed}s` : "Loading..."}
               </span>
             </motion.span>
@@ -83,7 +83,7 @@ export function ImageReply({ image, streaming, color }: Props) {
         )}
       </button>
       {image && (
-        <p className="line-clamp-2 px-1.5 pb-0.5 pt-2 text-xs leading-snug text-muted" title={image.prompt}>
+        <p className="line-clamp-2 px-1.5 pb-0.5 pt-2 text-xs leading-snug text-text-tertiary" title={image.prompt}>
           {image.prompt}
         </p>
       )}
@@ -92,8 +92,11 @@ export function ImageReply({ image, streaming, color }: Props) {
   );
 }
 
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+// 44px on touch, 40px for a fine pointer at lg and up.
 const TOOL =
-  "flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-panel text-muted transition-colors hover:border-accent/60 hover:text-ink";
+  "control lift flex size-11 items-center justify-center rounded-md text-text-secondary hover-fine:text-text-primary lg:pointer-fine:size-10";
 
 function Lightbox({ image, open, onClose }: { image: Picture; open: boolean; onClose: () => void }) {
   useEffect(() => {
@@ -110,48 +113,52 @@ function Lightbox({ image, open, onClose }: { image: Picture; open: boolean; onC
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
+          exit={{ opacity: 0, transition: { duration: 0.15, ease: EASE } }}
+          transition={{ duration: 0.25, ease: EASE }}
           onClick={onClose}
           role="dialog"
           aria-modal="true"
           aria-label="Image"
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-canvas/95 p-3 sm:p-6"
+          className="shell fixed inset-0 z-50 flex items-center justify-center bg-background/95 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] text-text-primary sm:p-6"
         >
-          <div className="flex w-full max-w-[95vw] justify-end gap-2" onClick={(event) => event.stopPropagation()}>
-            <a href={image.url} download title="Download" aria-label="Download" className={TOOL}>
-              <Download size={17} />
-            </a>
-            <a
-              href={image.url}
-              target="_blank"
-              rel="noreferrer"
-              title="Open in a new tab"
-              aria-label="Open in a new tab"
-              className={TOOL}
-            >
-              <ExternalLink size={17} />
-            </a>
-            <button type="button" onClick={onClose} title="Close" aria-label="Close" className={TOOL}>
-              <X size={18} />
-            </button>
-          </div>
-          <motion.img
-            src={image.url}
-            alt={image.prompt}
-            initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 320, damping: 30 }}
-            onClick={(event) => event.stopPropagation()}
-            className="min-h-0 max-h-[78dvh] max-w-[95vw] rounded-xl border border-line object-contain"
-          />
-          <p
-            className="line-clamp-3 max-w-2xl text-center text-sm leading-relaxed text-muted"
-            onClick={(event) => event.stopPropagation()}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.15, ease: EASE } }}
+            transition={{ duration: 0.25, ease: EASE }}
+            className="flex max-h-full min-h-0 w-full flex-col items-center gap-3"
           >
-            {image.prompt}
-          </p>
+            <div className="flex w-full max-w-[95vw] justify-end gap-2" onClick={(event) => event.stopPropagation()}>
+              <a href={image.url} download title="Download" aria-label="Download" className={TOOL}>
+                <Download size={17} />
+              </a>
+              <a
+                href={image.url}
+                target="_blank"
+                rel="noreferrer"
+                title="Open in a new tab"
+                aria-label="Open in a new tab"
+                className={TOOL}
+              >
+                <ExternalLink size={17} />
+              </a>
+              <button type="button" onClick={onClose} title="Close" aria-label="Close" className={TOOL}>
+                <X size={18} />
+              </button>
+            </div>
+            <img
+              src={image.url}
+              alt={image.prompt}
+              onClick={(event) => event.stopPropagation()}
+              className="min-h-0 max-h-[78dvh] max-w-[95vw] rounded-lg border border-[var(--hairline-2)] object-contain shadow-[var(--shadow-float)]"
+            />
+            <p
+              className="line-clamp-3 max-w-2xl text-center text-sm leading-relaxed text-text-secondary"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {image.prompt}
+            </p>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>,

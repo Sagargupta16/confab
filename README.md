@@ -40,6 +40,11 @@ GitHub sign-in limited to its owner; it is described under
 - **Models pull each other in.** A reply that contains `@handle` makes that
   model answer next. The hop cap (default 6) limits how many of those replies
   can follow one message of yours, so two models cannot loop forever.
+- **Or no cap.** Set Hops to "No limit" and the models keep answering each other
+  until they reach a conclusion: they are told the room has no cap and that a
+  reply which mentions nobody ends the discussion. Stop still ends it at once.
+  Models that never settle keep going, and keep billing, until you press Stop;
+  hosted on Vercel a round also stops starting new replies after 240 seconds.
 - **Per-reply numbers.** Input tokens, output tokens, seconds and the cost in
   dollars under every reply, and a running token total and cost per model in the
   member list.
@@ -48,9 +53,17 @@ GitHub sign-in limited to its owner; it is described under
   running total under the list.
 - **Members you choose.** Switch any seat in or out of the chat. A model that
   fails (throttled, no access) shows its error in place and the round goes on.
-- **A model per seat.** Each seat has a model dropdown with every model it offers,
-  each shown with its price. Pick Claude Opus 5.5 instead of Fable 5.2, or GPT-OSS
-  20B instead of GPT-6.2 Astra, without leaving the chat.
+- **A model per seat.** Each seat has a model menu that lists every model it
+  offers by name, with a tick on the one in use. Pick Claude Opus 5.5 instead of
+  Fable 5.2, or GPT-OSS 20B instead of GPT-6.2 Astra, without leaving the chat.
+  The menu shows no prices; those are in the Cost tab.
+- **Cheap, Medium or Intense.** One pick sets every seat's model by cost: Cheap
+  is each seat's lowest-priced model, Intense is each seat's default (its top
+  model), Medium is the priced model closest to halfway between them. The menu
+  tags the model each level uses. Nothing extra is stored: a level is just the
+  seat choices it writes, and changing one seat by hand leaves no level selected.
+  The picks are worked out from `prices.json` in
+  [`backend/src/confab/levels.py`](backend/src/confab/levels.py).
 - **A role per member.** A role dropdown on each text seat sets how that model
   behaves in the room: Critic, Builder, Fact-checker, Devil's advocate,
   Simplifier or Moderator, or `Custom...` with a sentence of your own (up to 200
@@ -61,7 +74,7 @@ GitHub sign-in limited to its owner; it is described under
 
 ## Members
 
-There are 12 seats, 35 models. Each seat is a handle in the chat and offers the
+There are 12 seats, 33 models. Each seat is a handle in the chat and offers the
 models below; the first one is what the seat starts with. The list lives in
 [`backend/src/confab/models.json`](backend/src/confab/models.json).
 
@@ -71,19 +84,23 @@ models below; the first one is what the seat starts with. The list lives in
 | `@gpt` | OpenAI | GPT-6.2 Astra, GPT-6.2 Sol, GPT-6.1 Terra, GPT-6 Luna, GPT-OSS 120B, GPT-OSS 20B |
 | `@grok` | xAI | Grok 4.7 |
 | `@kimi` | Moonshot AI | Kimi K3.1 |
-| `@mistral` | Mistral | Mistral Large 3, Devstral 2, Magistral Small 1.2, Pixtral Large, Ministral 3 14B, Ministral 3 8B, Ministral 3 3B |
+| `@mistral` | Mistral | Mistral Large 3, Magistral Small 1.2, Pixtral Large, Ministral 3 14B, Ministral 3 8B, Ministral 3 3B |
 | `@deepseek` | DeepSeek | DeepSeek V3.2 |
 | `@nova` | Amazon | Nova Pro, Nova 2 Lite, Nova Micro |
 | `@qwen` | Qwen | Qwen3 Next, Qwen3 Coder Next, Qwen3 VL 235B, Qwen3 32B |
 | `@minimax` | MiniMax | MiniMax M2.5 |
 | `@nemotron` | NVIDIA | Nemotron 3 Super, Nemotron 3 Nano |
-| `@glm` | Z.AI | GLM 5.3, GLM 4.7 Flash |
+| `@glm` | Z.AI | GLM 5.3 |
 | `@stability` | Stability AI | Stable Image Ultra, Stable Diffusion 3.5 Large, Stable Image Core (images) |
 
 Kimi and GLM start switched off: their default models (Kimi K3.1 and GLM 5.3)
 were throttled on every call on the account this was built on, on 2026-11-19.
 Switch them on in the member list if your quota allows it. Only current models
-are listed; superseded and end-of-life ones were left out.
+are listed; superseded ones and any model AWS marks Legacy or gives an
+end-of-life date are left out. The roster was checked against the AWS
+[legacy and end-of-life page](https://docs.aws.amazon.com/bedrock/latest/userguide/model-lifecycle-legacy.html)
+on 2026-11-20, which removed Devstral 2 and GLM 4.7 Flash (Legacy since
+2026-09-30, end of life 2027-03-30).
 
 To add or swap a model, edit that file. A seat has a handle, a provider, a kind
 (`text` or `image`), a colour, whether it starts joined, a default model id and a
@@ -292,6 +309,7 @@ backend/src/confab/
   bedrock.py    streaming Converse call, image call and credentials
   chat.py       roles, mention parsing, each model's view, the round loop
   modes.py      the four room presets
+  levels.py     the three cost levels, worked out from the prices
   settings.py   environment settings and the refusal to start when hosted
                 settings are incomplete
   db.py         the engine and sessions (SQLite locally, Postgres hosted)
@@ -318,10 +336,13 @@ frontend/src/
   api.ts        the roster call and the one-time import of an older chat
   wire.ts       the JSON shapes the API speaks
   cost.ts       adds up cost per model and formats money
-  components/   Roster (member list with model and role pickers), Sidebar (the
+  index.css     the design tokens and the shell's classes
+  components/   Roster (member list with model and role pickers), ModelMenu (the
+                model picker), LevelControl (Cheap, Medium, Intense), Sidebar (the
                 Members and Cost tabs), ChatList (the chats sidebar), ChatHeader
-                (the top bar), Panel (slide-in drawers), SignIn, TitleInput,
-                CostTable, ImageReply, MessageList, Message, Composer
+                (the top bar), Panel (slide-in drawers), Button, ConfirmDialog,
+                CountUp, SignIn, TitleInput, CostTable, ImageReply, MessageList,
+                Message, Composer
 frontend/public/    the icons of the installed page
 .github/workflows/
   ci.yml              checks on every push and pull request; on main it then calls

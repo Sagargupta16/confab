@@ -61,17 +61,21 @@ No test suite yet. CI (`.github/workflows/ci.yml`) type-checks and builds the fr
 - `backend/src/confab/chats.py` -- the chats routes. Every one finds its chat through `owned_chat`, so no query reaches another user's chat.
 - `backend/src/confab/rounds.py` -- `POST /api/chat`: claims the chat (`round_id`, `round_beat`), saves your message, runs the round on a worker thread that saves each reply as it streams. The response only tails the worker's queue.
 - `backend/src/confab/modes.py` -- the four room presets, checked against the roster at import.
+- `backend/src/confab/levels.py` -- the three cost levels (cheap, medium, intense): one model id per seat for each, worked out from `prices.json` at import. Cheap is the seat's lowest-priced model, intense its default, medium the priced model nearest the geometric mean of the two. Nothing is stored for a level.
 - `backend/src/confab/deps.py` -- `CurrentUser`: the local user in local mode, a verified allowlisted user hosted. The branch is fixed at import.
 - `backend/src/confab/auth.py`, `oauth.py`, `github.py`, `tokens.py` -- sign-in, one-use refresh tokens, the GitHub calls and the JWTs.
 - `frontend/src/cost.ts` -- adds up cost per model and formats money; `components/CostTable.tsx` and `components/Sidebar.tsx` are the Cost tab.
 - `frontend/src/App.tsx` -- chat state, the round, catch-up polling, the layout.
 - `frontend/src/auth.ts`, `AuthGate.tsx`, `client.ts`, `api.ts`, `wire.ts` -- sign-in and tokens, the mode gate, the chats API calls, the roster call and one-time import of an older browser chat, and the JSON shapes.
 - `frontend/src/mentions.ts` -- the mention rule; keep it identical to `MENTION` in `chat.py`.
+- `frontend/src/index.css` -- the design tokens (the house system) and the shell's classes. The UI rules are in [`.claude/rules/frontend-ui.md`](.claude/rules/frontend-ui.md), which loads for any file under `frontend/src/`.
+- `frontend/src/components/ModelMenu.tsx`, `LevelControl.tsx` -- the model picker (a native popover listing model names, no prices) and the Cheap, Medium, Intense control. `App.tsx` derives the active level from the seats' models and applies a level through the settings PATCH.
+- `frontend/src/components/Button.tsx`, `ConfirmDialog.tsx`, `CountUp.tsx`, `Panel.tsx` -- the shared shell pieces.
 
 ## API routes
 
 - `GET /api/health` -- `{status, version, mode}`; `GET /api/health/db` -- 200 when the database answers, else 503.
-- `GET /api/roster` -- `{seats, roles, prices, modes}`.
+- `GET /api/roster` -- `{seats, roles, prices, modes, levels}`.
 - `GET /api/chats` -- the user's chats, newest first (up to 200); `POST /api/chats` -- create one, optionally with `settings` and imported `messages`.
 - `GET`, `PATCH` (`title`, `settings`) and `DELETE /api/chats/{chat_id}` -- read with messages, rename or re-seat, delete (409 while a round runs).
 - `GET /api/chats/{chat_id}/messages?from_seq=` -- messages from a seq plus `running`; `DELETE` on the same path clears the chat (409 while a round runs).
@@ -143,7 +147,7 @@ Sagar's steps, not the repo's: create the Neon database, the R2 bucket and the t
 - A model whose `temperature` support is unknown is stored as `false`: leaving the field out always works, sending it to a model that rejects it fails the call.
 - Image models go through InvokeModel in `us-west-2` (the model's `region`), while text stays on Converse in `AWS_REGION` (default `us-east-1`). SD 3.5 Large needs `"mode": "text-to-image"` in the body; Ultra and Core reject it.
 - Prices use the regional `us.` figure, not the cheaper global one. The long-prompt tier of Haiku 5.5 and the GPT-6 models is not applied.
-- GPT-6 Astra was superseded by GPT-6.2 Astra; superseded and legacy models stay out of `models.json`.
+- GPT-6 Astra was superseded by GPT-6.2 Astra; superseded and legacy models stay out of `models.json`. So does any model AWS lists as Legacy or with an end-of-life date (his ask, 2026-11-20): Devstral 2 and GLM 4.7 Flash were removed that day (Legacy 2026-09-30, EOL 2027-03-30). The check is the raw page <https://docs.aws.amazon.com/bedrock/latest/userguide/model-lifecycle-legacy.md> searched for each id without its `us.` prefix; it listed 0 of the remaining 33. Models launched on or after 2026-09-07 carry their dates on their model cards instead, which were not read. Re-run it before adding a model. A saved chat that still names a removed model falls back to the seat's default (`resolve` in `rounds.py`).
 - Since 0.4.0 the page reads `confab.messages`, `confab.seats`, `confab.joined`, `confab.default` and `confab.maxHops` only in the one-time import (`api.ts`); the old keys are left in place. Chat settings live in the `chats` row.
 - Vercel entrypoint: `[tool.vercel] entrypoint = "src.confab.main:app"` in `backend/pyproject.toml`. `"confab.main:app"` fails the build (`PYTHON_ENTRYPOINT_NOT_FOUND`) because the path resolves from the project root (probed 2026-11-19).
 - Inside `backend/src/confab/` use relative imports only. At runtime the module is `src.confab.main`, so `from confab.x` passes locally and breaks on Vercel; `ci.yml` greps for it (`migrations/` is excluded).
@@ -152,6 +156,7 @@ Sagar's steps, not the repo's: create the Neon database, the R2 bucket and the t
 - The worker thread outlives a dropped connection by design. On Vercel the function cap is 300 s, so a round stops starting new replies after 240 s (`round_budget_seconds`), and a round whose heartbeat is older than 330 s counts as dead. Whether Vercel keeps the thread running after the client leaves was not proved when this was written.
 - Migrations must be additive (add a column or table, never drop or rename in the same release): Vercel goes live before the migrate job runs, so new code briefly meets the old schema.
 - `updated_at` moves on a rename, a new message or the end of a round, not on a settings change. A new chat copies the open chat's room (the page does this, not the API).
+- `max_hops` is 0 to 20, or `-1` (`NO_HOP_LIMIT` in `chat.py`, `NO_LIMIT` in `ChatHeader.tsx`) for no cap (his ask, 2026-11-20). With no cap `run()` ends only when a reply mentions nobody, on Stop or at the hosted time budget, so `system_prompt` adds a paragraph telling each model to state the conclusion and mention no one once the group agrees. Proved live that day: a counting game ran 43 replies until Stop, and a three-model debate ended by itself after 7.
 - Local round state is reset at startup (`reset_local_rounds`); hosted state is cleaned lazily when the next round claims a chat.
 - A model mentioned by you and then again by an earlier reply in the same round answers once; `run()` skips a handle that is already waiting. One exception: an image seat that is waiting takes the newest reply that names it as its prompt, so "@nova write a prompt and give it to @stability" draws nova's sentence, not your instruction (found live, 2026-11-19).
 - The preview pane cannot load a Vite server started with `--host 127.0.0.1`; leave the flag off.
@@ -170,3 +175,5 @@ Sagar's steps, not the repo's: create the Neon database, the R2 bucket and the t
 - A new model enters `models.json` only after a live call to it has worked. A price enters `prices.json` only from the AWS price list read that day, never from memory; a model without one shows tokens only.
 - Every text model call goes through the Converse API on the `us.` profile ids. Never route Claude through Bedrock Mantle.
 - Keep motion visible; no `prefers-reduced-motion` handling.
+- The model picker never shows a price (his ask, 2026-11-20); prices live in the Cost tab. Never call `confirm()` or `alert()`; use `ConfirmDialog`.
+- The house look (0.5.0) is on every surface; he approved the roll-out on 2026-11-20 after seeing the shell pilot ("Yes, roll it out"). The eight 0.4 colour tokens are gone, so `bg-panel`, `text-muted` and the like produce no CSS. A new visual style still goes on one surface first.

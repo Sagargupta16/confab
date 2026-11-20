@@ -1,16 +1,20 @@
+import { MessagesSquare } from "lucide-react";
 import { motion } from "motion/react";
 import { type ReactNode, useState } from "react";
 import { startSignIn } from "../auth";
+import { Button } from "./Button";
 
-/** The centred flat card the gate screens share. */
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+/** The centred flat card the gate screens share, on the app canvas, padded clear of a phone's notch and home bar. */
 export function GateCard({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-full items-center justify-center bg-canvas p-4">
+    <div className="shell flex min-h-full items-center justify-center bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-text-primary">
       <motion.div
-        initial={{ opacity: 0, y: 24, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
-        className="w-full max-w-sm rounded-xl border border-line bg-panel p-6"
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: EASE }}
+        className="w-full max-w-sm rounded-lg border border-[var(--hairline-2)] bg-surface-1 p-6"
       >
         {children}
       </motion.div>
@@ -44,23 +48,36 @@ export function SignIn({ error }: { error?: string | null }) {
   const line = failure ?? error ?? null;
   return (
     <GateCard>
-      <h1 className="text-xl font-semibold text-ink">confab</h1>
-      <p className="mt-1 text-sm text-muted">A group chat with Bedrock models. Private to its owner.</p>
-      <button
-        type="button"
+      <div className="flex items-center gap-2.5">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-text-primary text-background">
+          <MessagesSquare aria-hidden size={14} />
+        </span>
+        <div className="min-w-0">
+          <h1 className="text-sm font-semibold leading-4">
+            confab<span className="text-app-blue">.</span>
+          </h1>
+          <p className="text-[10px] leading-4 text-text-tertiary">Sign in to continue</p>
+        </div>
+      </div>
+      <p className="mt-5 text-sm leading-relaxed text-text-tertiary">
+        A group chat with Bedrock models. Private to its owner.
+      </p>
+      <Button
+        variant="primary"
         onClick={go}
-        disabled={busy}
-        className="mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 text-base font-medium text-canvas transition-opacity hover:opacity-90 disabled:opacity-60"
+        pending={busy}
+        icon={<GitHubMark />}
+        className="mt-6 w-full"
       >
-        <GitHubMark />
         {busy ? "Opening GitHub" : "Sign in with GitHub"}
-      </button>
+      </Button>
       {line && (
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15 }}
           role="alert"
-          className="mt-4 text-sm text-danger"
+          className="mt-4 text-sm text-app-red"
         >
           {line}
         </motion.p>

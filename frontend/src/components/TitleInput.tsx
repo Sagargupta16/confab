@@ -29,9 +29,9 @@ export function TitleInput({ value, onDone, className = "" }: Props) {
   return (
     <motion.input
       ref={box}
-      initial={{ opacity: 0, y: 4 }}
+      initial={{ opacity: 0.7, y: 3 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.14 }}
+      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
       name="title"
       value={text}
       maxLength={120}
@@ -50,7 +50,8 @@ export function TitleInput({ value, onDone, className = "" }: Props) {
           end(false);
         }
       }}
-      className={`h-10 min-w-0 rounded-lg border border-accent/70 bg-canvas px-2.5 text-base text-ink outline-none md:h-9 md:text-sm ${className}`}
+      // 16px and 44px below lg (iOS zooms on less), the 13px row size on a desktop.
+      className={`control h-11 min-w-0 rounded-md px-2.5 text-base text-text-primary lg:text-[13px] lg:pointer-fine:h-9 ${className}`}
     />
   );
 }

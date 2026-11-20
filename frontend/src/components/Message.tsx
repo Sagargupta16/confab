@@ -21,7 +21,7 @@ export function Message({ message, members, modelNames, humanName }: Props) {
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="mx-auto max-w-xl rounded-full border border-line px-4 py-1.5 text-center text-xs text-muted"
+        className="mx-auto max-w-xl rounded-full border border-[var(--hairline-2)] bg-[var(--overlay-1)] px-4 py-1.5 text-center text-xs leading-relaxed break-words text-text-tertiary"
       >
         {message.text}
       </motion.p>
@@ -30,7 +30,7 @@ export function Message({ message, members, modelNames, humanName }: Props) {
 
   const mine = message.author === HUMAN;
   const member = members[message.author];
-  const color = mine ? "var(--color-accent)" : (member?.color ?? "var(--color-muted)");
+  const color = mine ? "var(--color-app-blue)" : (member?.color ?? "var(--color-text-tertiary)");
   const handles = new Set(Object.keys(members));
   const name = mine
     ? humanName
@@ -73,12 +73,16 @@ export function Message({ message, members, modelNames, humanName }: Props) {
               {message.role}
             </motion.span>
           )}
-          {message.askedBy && <span className="text-muted">pulled in by @{message.askedBy}</span>}
+          {message.askedBy && <span className="figure text-[11px] text-text-tertiary">pulled in by @{message.askedBy}</span>}
         </header>
         <div
-          className={`reply rounded-2xl border text-left text-[0.95rem] leading-relaxed break-words ${
+          className={`reply rounded-lg border text-left text-[0.95rem] leading-relaxed break-words text-text-primary ${
             picture ? "p-1.5" : "px-4 py-2.5"
-          } ${mine ? "rounded-tr-sm border-accent/40 bg-accent/10" : "rounded-tl-sm border-line bg-panel"}`}
+          } ${
+            mine
+              ? "border-app-blue/30 bg-[var(--focus-ring-soft)]"
+              : "border-[var(--hairline-2)] bg-surface-1"
+          }`}
         >
           {picture ? (
             <ImageReply image={message.image} streaming={Boolean(message.streaming)} color={color} />
@@ -90,7 +94,7 @@ export function Message({ message, members, modelNames, humanName }: Props) {
                   if (href?.startsWith("#m-")) {
                     const target = members[href.slice(3)];
                     return (
-                      <span className="font-semibold" style={{ color: target?.color ?? "var(--color-accent)" }}>
+                      <span className="font-semibold" style={{ color: target?.color ?? "var(--color-app-blue)" }}>
                         {children}
                       </span>
                     );
@@ -113,13 +117,13 @@ export function Message({ message, members, modelNames, humanName }: Props) {
             </span>
           ) : null}
           {message.error && (
-            <p className={`text-sm text-danger ${picture ? "px-2.5 py-1.5" : ""}`} role="alert">
+            <p className={`text-sm text-app-red ${picture ? "px-2.5 py-1.5" : ""}`} role="alert">
               {message.error}
             </p>
           )}
         </div>
         {(footer.length > 0 || unbilled) && (
-          <footer className="mt-1 text-[0.7rem] tabular-nums text-muted">
+          <footer className="figure mt-1 text-[11px] leading-4 text-text-tertiary">
             {footer.join(" · ")}
             {unbilled && (
               <span title="The model reports tokens only when a reply finishes; Bedrock still bills what was generated.">

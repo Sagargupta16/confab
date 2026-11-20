@@ -27,6 +27,13 @@ backend/confab.db-*
 # The built page, written into the package by `pnpm run build`
 backend/src/confab/static/
 
+# Claude Code: only the shared rules are tracked; previews, local settings and the
+# vendor skill (installed with `npx skills`, pinned in skills-lock.json) stay local,
+# as in ledger-sync.
+.claude/*
+!.claude/rules/
+skills-lock.json
+
 # Logs and scratch
 *.log
 .scratch/
