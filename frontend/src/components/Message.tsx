@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { memo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { money } from "../cost";
@@ -15,7 +16,7 @@ type Props = {
   humanName: string;
 };
 
-export function Message({ message, members, modelNames, humanName }: Props) {
+export const Message = memo(function Message({ message, members, modelNames, humanName }: Props) {
   if (message.notice) {
     return (
       <motion.p
@@ -136,4 +137,4 @@ export function Message({ message, members, modelNames, humanName }: Props) {
       </div>
     </motion.article>
   );
-}
+});

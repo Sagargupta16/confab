@@ -1,6 +1,6 @@
 {
   "name": "confab",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "private": true,
   "packageManager": "pnpm@12.21.0",
   "description": "A group chat with Amazon Bedrock models: mention one and it answers, and they can pull each other in",
