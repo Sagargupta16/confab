@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.2 - 2026-11-26
+
+- Speed: while a reply streams, only that reply is drawn again. Before, every
+  chunk re-parsed the markdown of every finished reply in the chat (about 4 ms
+  each, so roughly 160 ms per chunk in a chat of 40 replies). Each message is
+  now skipped unless its own text, status or the room changed. The page looks
+  and animates the same.
+
 ## 0.5.1 - 2026-11-20
 
 - Security: the page's build no longer installs minimatch 10.2.6, which has a
